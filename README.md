@@ -1,81 +1,109 @@
-# electron-browser-shell
+# Matrix Application - Electron Browser Shell
 
-A minimal, tabbed web browser with support for Chrome extensions—built on Electron.
+一个基于Electron构建的最小化浏览器shell应用程序，支持Chrome扩展和现代Web技术。
 
-![browser preview image showing 3 tabs and a youtube video](./screenshot.png)
+## 项目简介
 
-## Packages
+本项目是一个功能完整的Electron浏览器shell，提供了：
+- Chrome扩展支持
+- 上下文菜单功能
+- Chrome Web Store集成
+- 现代化的浏览器界面
 
-| Name                                                                    | Description                                                                                  |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [shell](./packages/shell)                                               | A minimal, tabbed web browser used as a testbed for development of Chrome extension support. |
-| [electron-chrome-extensions](./packages/electron-chrome-extensions)     | Adds additional API support for Chrome extensions to Electron.                               |
-| [electron-chrome-context-menu](./packages/electron-chrome-context-menu) | Chrome context menu for Electron browsers.                                                   |
-| [electron-chrome-web-store](./packages/electron-chrome-web-store)       | Download extensions from the Chrome Web Store in Electron.                                   |
+## 系统要求
 
-## Usage
+- Node.js >= 16.0.0
+- Yarn >= 1.10.0 < 2.0.0
+- 支持的操作系统：Windows、macOS、Linux
+
+## 安装依赖
 
 ```bash
-# Get the code
-git clone git@github.com:samuelmaddock/electron-browser-shell.git
-cd electron-browser-shell
-
-# Install and launch the browser
-yarn
-yarn start
+# 安装项目依赖
+yarn install
 ```
 
-### Install extensions
+## 启动方式
 
-Navigate to the [Chrome Web Store](https://chromewebstore.google.com/) and install an extension.
+### 开发模式启动
 
-To test local unpacked extensions, include them in `./extensions` then launch the browser.
+```bash
+# 标准开发启动（推荐）
+yarn start
 
-## Roadmap
+# 调试模式启动
+yarn start:debug
 
-### 🚀 Current
+# 跳过构建直接启动（快速开发）
+yarn start:skip-build
+```
 
-- [x] Browser tabs
-- [x] Unpacked extension loader
-- [x] Initial [`chrome.tabs` extensions API](https://developer.chrome.com/extensions/tabs)
-- [x] Initial [extension popup](https://developer.chrome.com/extensions/browserAction) support
-- [x] .CRX extension loader
-- [x] [Chrome Web Store](https://chromewebstore.google.com) extension installer
-- [x] Automatic extension updates
-- [x] [Manifest V3](https://developer.chrome.com/docs/extensions/mv3/intro/) support—pending [electron/electron#44411](https://github.com/electron/electron/pull/44411)
-- [ ] Support for common [`chrome.*` extension APIs](https://developer.chrome.com/docs/extensions/reference/api)
-- [ ] Robust extension popup support
-- [ ] Respect extension manifest permissions
+### Electron开发模式
 
-### 🤞 Eventually
+```bash
+# 使用本地Electron版本启动
+yarn start:electron-dev
 
-- [ ] Extension management (enable/disable/uninstall)
-- [ ] Installation prompt UX
-- [ ] [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/Microsoft-Edge-Extensions-Home) extension installer
-- [ ] Full support of [`chrome.*` extension APIs](https://developer.chrome.com/docs/extensions/reference/api)
+# Electron调试模式
+yarn start:electron-dev:debug
 
-### 🤔 Considering
+# Electron性能追踪模式
+yarn start:electron-dev:trace
+```
 
-- [ ] Opt-in support for custom `webRequest` blocking implementation
-- [ ] Browser tab discarding
+## 构建项目
 
-### ❌ Not planned
+### 完整构建
 
-- [Chrome Platform App APIs](https://developer.chrome.com/docs/extensions/reference/#platform_apps_apis)
+```bash
+# 构建所有包
+yarn build
+```
 
-## License
+### 分别构建各个模块
 
-Most packages in this project use MIT with the exception of electron-chrome-extensions.
+```bash
+# 构建上下文菜单模块
+yarn build:context-menu
 
-For proprietary use, please [contact me](mailto:sam@samuelmaddock.com?subject=electron-browser-shell%20license) or [sponsor me on GitHub](https://github.com/sponsors/samuelmaddock/) under the appropriate tier to [acquire a proprietary-use license](https://github.com/samuelmaddock/electron-browser-shell/blob/master/LICENSE-PATRON.md). These contributions help make development and maintenance of this project more sustainable and show appreciation for the work thus far.
+# 构建Chrome扩展模块
+yarn build:extensions
 
-### Contributor license agreement
+# 构建Chrome Web Store模块
+yarn build:chrome-web-store
 
-By sending a pull request, you hereby grant to owners and users of the
-electron-browser-shell project a perpetual, worldwide, non-exclusive,
-no-charge, royalty-free, irrevocable copyright license to reproduce, prepare
-derivative works of, publicly display, publicly perform, sublicense, and
-distribute your contributions and such derivative works.
+# 构建Shell主程序
+yarn build:shell
+```
 
-The owners of the electron-browser-shell project will also be granted the right to relicense the
-contributed source code and its derivative works.
+## 打包发布
+
+```bash
+# 进入shell目录
+cd packages/shell
+
+# 打包应用
+yarn package
+
+# 制作安装包
+yarn make
+```
+
+## 测试
+
+```bash
+# 运行所有测试
+yarn test
+
+# 运行扩展模块测试
+yarn test:extensions
+```
+
+## 代码格式化
+
+```bash
+# 格式化所有代码文件
+yarn format
+```
+
+## 项目结构

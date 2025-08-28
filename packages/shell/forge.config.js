@@ -1,10 +1,10 @@
 module.exports = {
   packagerConfig: {
-    name: 'Shell',
+    name: 'Matrix Application',
     asar: true,
     extraResource: ['browser/ui'],
+    icon: './assets/icon', // 会自动根据平台选择对应格式
   },
-  rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-zip',
@@ -13,6 +13,10 @@ module.exports = {
     {
       name: '@electron-forge/maker-dmg',
       platforms: ['darwin'],
+      config: {
+        icon: './assets/icon.icns',
+        name: 'Matrix Application'
+      }
     },
   ],
   plugins: [

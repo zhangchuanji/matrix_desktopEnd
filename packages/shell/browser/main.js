@@ -92,8 +92,8 @@ class Browser {
   }
 
   constructor() {
-    // 添加账号数据文件路径
-    this.accountsDataPath = path.join(__dirname, 'accounts.json')
+    // 修改账号数据文件路径 - 使用用户数据目录而不是应用目录
+    this.accountsDataPath = path.join(app.getPath('userData'), 'accounts.json')
 
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve

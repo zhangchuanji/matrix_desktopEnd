@@ -88,7 +88,7 @@ class Browser {
   windows = []
 
   urls = {
-    newtab: 'about:blank',
+    newtab: 'http://localhost/material',
   }
 
   constructor() {
@@ -385,22 +385,26 @@ class Browser {
     if (!focusedWindow) {
       throw new Error('No active window found')
     }
-  
+
     const tab = focusedWindow.getFocusedTab()
     if (!tab) {
       throw new Error('No active tab found')
     }
-  
+
     const url = tab.webContents.getURL()
     console.log('Analyzing page:', url)
-    
-    return tab.webContents.executeJavaScript(`
+
+    return tab.webContents
+      .executeJavaScript(
+        `
+      // 在 getCurrentPageLoginInfo 方法的 executeJavaScript 部分添加通用用户信息提取
       (async () => {
         const result = {
           url: window.location.href,
           title: document.title,
           forms: [],
           inputs: [],
+          userInfo: {}, // 新增用户信息字段
           storage: {
             localStorage: {},
             sessionStorage: {},
@@ -586,17 +590,209 @@ class Browser {
           }
         }
         
+        // 新增：通用用户信息获取
+        try {
+          const userInfo = {
+            platform: null,
+            username: null,
+            avatar: null,
+            userId: null,
+            email: null,
+            phone: null,
+            source: null,
+            selectors: []
+          }
+          
+          // 检测平台类型
+          const hostname = window.location.hostname
+          let platform = 'unknown'
+          
+          if (hostname.includes('sohu.com')) platform = 'sohu'
+          else if (hostname.includes('weibo.com')) platform = 'weibo'
+          else if (hostname.includes('zhihu.com')) platform = 'zhihu'
+          else if (hostname.includes('toutiao.com') || hostname.includes('jinritoutiao.com')) platform = 'toutiao'
+          else if (hostname.includes('baidu.com')) platform = 'baidu'
+          else if (hostname.includes('qq.com')) platform = 'qq'
+          else if (hostname.includes('163.com') || hostname.includes('126.com')) platform = 'netease'
+          else if (hostname.includes('sina.com')) platform = 'sina'
+          else if (hostname.includes('douyin.com')) platform = 'douyin'
+          else if (hostname.includes('kuaishou.com')) platform = 'kuaishou'
+          else if (hostname.includes('bilibili.com')) platform = 'bilibili'
+          else if (hostname.includes('xiaohongshu.com')) platform = 'xiaohongshu'
+          
+          userInfo.platform = platform
+          
+          // 平台特定的选择器配置
+          const platformSelectors = {
+            sohu: {
+              username: ['.mp-author-name', '.author-name', '.mp-info .name', '.profile-name'],
+              avatar: ['.mp-author-avatar img', '.author-avatar img', '.profile-avatar img']
+            },
+            weibo: {
+              username: ['.username', '.name', '.WB_info .username', '.card-name'],
+              avatar: ['.avatar img', '.head img', '.WB_face img']
+            },
+            zhihu: {
+              username: ['.UserLink-link', '.AuthorInfo-name', '.Profile-name', '.UserInfo-name'],
+              avatar: ['.Avatar img', '.UserAvatar img', '.Profile-avatar img']
+            },
+            toutiao: {
+              username: ['.user-name', '.author-name', '.profile-name', '.nickname'],
+              avatar: ['.user-avatar img', '.author-avatar img', '.profile-avatar img']
+            },
+            baidu: {
+              username: ['.user-name', '.username', '.profile-name', '.passport-user-name'],
+              avatar: ['.user-avatar img', '.profile-avatar img', '.passport-avatar img']
+            },
+            bilibili: {
+              username: ['.username', '.user-name', '.up-name', '.bili-user-profile .username'],
+              avatar: ['.user-avatar img', '.up-avatar img', '.bili-avatar img']
+            },
+            douyin: {
+              username: ['.user-name', '.username', '.nickname', '.author-name'],
+              avatar: ['.user-avatar img', '.avatar img', '.author-avatar img']
+            }
+          }
+          
+          // 通用选择器（适用于所有平台）
+          const genericSelectors = {
+            username: [
+              '.user-name', '.username', '.user-info', '.profile-name',
+              '.nickname', '.display-name', '.account-name', '.author-name',
+              '[class*="user"][class*="name"]', '[class*="profile"][class*="name"]',
+              '[class*="author"][class*="name"]', '[data-testid*="username"]',
+              '.name', '.user', '.profile', '.account'
+            ],
+            avatar: [
+              '.avatar img', '.user-avatar img', '.profile-avatar img',
+              '[class*="avatar"] img', '[class*="head"] img',
+              '.user-photo img', '.profile-photo img', '.user-img img',
+              '[data-testid*="avatar"] img', '.headimg img'
+            ]
+          }
+          
+          // 获取平台特定选择器
+          const selectors = platformSelectors[platform] || {}
+          const usernameSelectors = [...(selectors.username || []), ...genericSelectors.username]
+          const avatarSelectors = [...(selectors.avatar || []), ...genericSelectors.avatar]
+          
+          // 获取用户名
+          for (const selector of usernameSelectors) {
+            try {
+              const element = document.querySelector(selector)
+              if (element && element.textContent && element.textContent.trim()) {
+                  console.log('找到用户名:', selector, element.textContent.trim());
+                userInfo.username = element.textContent.trim()
+                userInfo.selectors.push({ type: 'username', selector, found: true })
+                break
+              }
+            } catch (e) {
+              userInfo.selectors.push({ type: 'username', selector, error: e.message })
+            }
+          }
+          
+          // 获取头像
+          for (const selector of avatarSelectors) {
+            try {
+              const element = document.querySelector(selector)
+              if (element && element.src) {
+                  console.log('找到头像:', selector, element.src);
+                userInfo.avatar = element.src
+                userInfo.selectors.push({ type: 'avatar', selector, found: true })
+                break
+              }
+            } catch (e) {
+              userInfo.selectors.push({ type: 'avatar', selector, error: e.message })
+            }
+          }
+          
+          // 从页面标题提取用户名
+          if (!userInfo.username) {
+            const titlePatterns = [
+              /(.+?)的搜狐号/,
+              /(.+?)\s*-\s*搜狐号/,
+              /(.+?)的微博/,
+              /(.+?)\s*-\s*微博/,
+              /(.+?)的知乎/,
+              /(.+?)\s*-\s*知乎/,
+              /(.+?)的头条号/,
+              /(.+?)\s*-\s*今日头条/,
+              /(.+?)的百家号/,
+              /(.+?)\s*-\s*百度/,
+              /(.+?)的B站/,
+              /(.+?)\s*-\s*哔哩哔哩/
+            ]
+            
+            for (const pattern of titlePatterns) {
+              const match = document.title.match(pattern)
+              if (match && match[1]) {
+                userInfo.username = match[1].trim()
+                userInfo.source = 'title'
+                break
+              }
+            }
+          }
+          
+          // 从存储中获取用户信息
+          const storageKeys = [
+            'user', 'userInfo', 'profile', 'account', 'loginUser',
+            'currentUser', 'userData', 'userProfile', 'accountInfo',
+            'loginInfo', 'authUser', 'sessionUser'
+          ]
+          
+          for (const key of storageKeys) {
+            try {
+              // 检查 localStorage
+              const localData = localStorage.getItem(key)
+              if (localData) {
+                const parsed = JSON.parse(localData)
+                if (parsed && typeof parsed === 'object') {
+                  userInfo.username = userInfo.username || parsed.name || parsed.username || parsed.nickname || parsed.displayName
+                  userInfo.avatar = userInfo.avatar || parsed.avatar || parsed.photo || parsed.headImg || parsed.profilePicture
+                  userInfo.userId = userInfo.userId || parsed.id || parsed.userId || parsed.uid
+                  userInfo.email = userInfo.email || parsed.email
+                  userInfo.phone = userInfo.phone || parsed.phone || parsed.mobile
+                  if (!userInfo.source) userInfo.source = 'localStorage'
+                }
+              }
+              
+              // 检查 sessionStorage
+              const sessionData = sessionStorage.getItem(key)
+              if (sessionData) {
+                const parsed = JSON.parse(sessionData)
+                if (parsed && typeof parsed === 'object') {
+                  userInfo.username = userInfo.username || parsed.name || parsed.username || parsed.nickname || parsed.displayName
+                  userInfo.avatar = userInfo.avatar || parsed.avatar || parsed.photo || parsed.headImg || parsed.profilePicture
+                  userInfo.userId = userInfo.userId || parsed.id || parsed.userId || parsed.uid
+                  userInfo.email = userInfo.email || parsed.email
+                  userInfo.phone = userInfo.phone || parsed.phone || parsed.mobile
+                  if (!userInfo.source) userInfo.source = 'sessionStorage'
+                }
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+          
+          result.userInfo = userInfo
+          
+        } catch (error) {
+          result.userInfo = { error: error.message }
+        }
+        
         return result
       })()
-    `).then(pageData => {
-      return this.session.cookies.get({ url: url }).then(cookies => {
-        return {
-          pageData: pageData,
-          cookies: cookies,
-          timestamp: new Date().toISOString()
-        }
+    `,
+      )
+      .then((pageData) => {
+        return this.session.cookies.get({ url: url }).then((cookies) => {
+          return {
+            pageData: pageData,
+            cookies: cookies,
+            timestamp: new Date().toISOString(),
+          }
+        })
       })
-    })
   }
 
   createWindow(options) {
@@ -634,7 +830,9 @@ class Browser {
   }
 
   createInitialWindow() {
-    this.createWindow()
+    this.createWindow({
+      initialUrl: 'http://localhost/material', // 添加这行
+    })
   }
 
   async onWebContentsCreated(event, webContents) {
@@ -746,6 +944,7 @@ class Browser {
         timestamp: timestamp,
         forms: accountData.pageData.forms,
         inputs: accountData.pageData.inputs,
+        userInfo: accountData.pageData.userInfo, // 添加这行
         cookies: accountData.cookies,
       }
 
@@ -796,10 +995,10 @@ class Browser {
         console.log('收到捕获登录信息请求')
         const loginInfo = await this.getCurrentPageLoginInfo()
         console.log('成功捕获登录信息:', loginInfo)
-        
+
         // 保存到文件
         const saveResult = this.saveAccountToFile(loginInfo)
-        
+
         // 广播到所有窗口的所有标签页
         if (saveResult.success) {
           const broadcastData = {
@@ -810,23 +1009,23 @@ class Browser {
             timestamp: new Date().toISOString(),
             message: saveResult.message,
             totalAccounts: saveResult.totalAccounts,
-            
+
             // 完整的登录信息
             loginInfo: loginInfo,
-            
+
             // 保存结果
-            saveResult: saveResult
+            saveResult: saveResult,
           }
-          
+
           console.log('准备广播数据:', broadcastData)
           this.broadcastToAllTabs('account-saved', broadcastData)
-          
-          // 额外延迟广播，确保所有标签页都能收到
-          setTimeout(() => {
-            console.log('延迟广播...')
-            this.broadcastToAllTabs('account-saved', broadcastData)
-          }, 100)
-          
+
+          // // 额外延迟广播，确保所有标签页都能收到
+          // setTimeout(() => {
+          //   console.log('延迟广播...')
+          //   this.broadcastToAllTabs('account-saved', broadcastData)
+          // }, 100)
+
           // 保存成功后关闭当前标签页
           setTimeout(() => {
             try {
@@ -854,17 +1053,16 @@ class Browser {
               console.error('关闭标签页时出错:', closeError)
             }
           }, 500) // 延迟500ms确保广播完成
-          
         } else {
           console.error('保存失败，不进行广播:', saveResult)
         }
-        
+
         return saveResult
       } catch (error) {
         console.error('捕获登录信息失败:', error)
         return {
           success: false,
-          error: error.message
+          error: error.message,
         }
       }
     })

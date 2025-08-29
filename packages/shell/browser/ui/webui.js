@@ -188,7 +188,6 @@ class WebUI {
 
   renderToolbar(tab) {
     this.$.addressUrl.value = tab.url
-    // this.$.browserActions.tab = tab.id
   }
 
   async onSaveAccountClick() {

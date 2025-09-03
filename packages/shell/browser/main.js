@@ -54,7 +54,7 @@ class TabbedBrowserWindow {
     const self = this
 
     this.tabs.on('tab-created', function onTabCreated(tab) {
-      tab.loadURL(options.urls.newtab)
+      tab.loadURL('https://www.baidu.com/')
 
       // Track tab that may have been created outside of the extensions API.
       self.extensions.addTab(tab.webContents, tab.window)
@@ -801,8 +801,8 @@ class Browser {
       urls: this.urls,
       extensions: this.extensions,
       window: {
-        width: 1280,
-        height: 720,
+        width: 1310,
+        height: 815,
         frame: false,
         titleBarStyle: 'hidden',
         titleBarOverlay: {
@@ -852,10 +852,117 @@ class Browser {
           return {
             action: 'allow',
             outlivesOpener: true,
-            createWindow: ({ webContents: guest, webPreferences }) => {
+            createWindow: async ({ webContents: guest, webPreferences }) => {
               const win = this.getWindowFromWebContents(webContents)
               const tab = win.tabs.create({ webContents: guest, webPreferences })
-              tab.loadURL(details.url)
+
+              // 获取源页面的数据
+              try {
+                const sourceUrl = webContents.getURL()
+
+                // 获取localStorage数据
+                const localStorageData = await webContents.executeJavaScript(`
+                  (() => {
+                    const data = {}
+                    for (let i = 0; i < localStorage.length; i++) {
+                      const key = localStorage.key(i)
+                      if (key) {
+                        data[key] = localStorage.getItem(key)
+                      }
+                    }
+                    return data
+                  })()
+                `)
+
+                // 获取sessionStorage数据
+                const sessionStorageData = await webContents.executeJavaScript(`
+                  (() => {
+                    const data = {}
+                    for (let i = 0; i < sessionStorage.length; i++) {
+                      const key = sessionStorage.key(i)
+                      if (key) {
+                        data[key] = sessionStorage.getItem(key)
+                      }
+                    }
+                    return data
+                  })()
+                `)
+
+                // 获取cookie数据
+                const cookies = await this.session.cookies.get({ url: sourceUrl })
+
+                // 加载新页面
+                await tab.loadURL(details.url)
+
+                // 等待页面加载完成后设置数据
+                tab.webContents.once('dom-ready', async () => {
+                  try {
+                    // 设置localStorage数据
+                    if (Object.keys(localStorageData).length > 0) {
+                      await tab.webContents.executeJavaScript(`
+                        (() => {
+                          const data = ${JSON.stringify(localStorageData)}
+                          Object.keys(data).forEach(key => {
+                            localStorage.setItem(key, data[key])
+                          })
+                        })()
+                      `)
+                    }
+
+                    // 设置sessionStorage数据
+                    if (Object.keys(sessionStorageData).length > 0) {
+                      await tab.webContents.executeJavaScript(`
+                        (() => {
+                          const data = ${JSON.stringify(sessionStorageData)}
+                          Object.keys(data).forEach(key => {
+                            sessionStorage.setItem(key, data[key])
+                          })
+                        })()
+                      `)
+                    }
+
+                    // 设置cookie数据到新URL
+                    if (cookies.length > 0) {
+                      for (const cookie of cookies) {
+                        // 检查cookie是否适用于新URL
+                        const newUrl = new URL(details.url)
+                        const cookieDomain = cookie.domain.startsWith('.')
+                          ? cookie.domain.substring(1)
+                          : cookie.domain
+
+                        if (
+                          newUrl.hostname.endsWith(cookieDomain) ||
+                          newUrl.hostname === cookieDomain
+                        ) {
+                          await this.session.cookies.set({
+                            url: details.url,
+                            name: cookie.name,
+                            value: cookie.value,
+                            domain: cookie.domain,
+                            path: cookie.path,
+                            secure: cookie.secure,
+                            httpOnly: cookie.httpOnly,
+                            expirationDate: cookie.expirationDate,
+                          })
+                        }
+                      }
+                    }
+
+                    console.log('Successfully transferred data to new tab:', {
+                      localStorage: Object.keys(localStorageData).length,
+                      sessionStorage: Object.keys(sessionStorageData).length,
+                      cookies: cookies.length,
+                    })
+                  } catch (error) {
+                    console.error('Failed to transfer data to new tab:', error)
+                  }
+                })
+              } catch (error) {
+                console.error('Failed to get source page data:', error)
+                // 如果获取数据失败，仍然加载页面
+                tab.loadURL(details.url)
+              }
+
               return tab.webContents
             },
           }
@@ -1096,6 +1203,181 @@ class Browser {
         }
       } catch (error) {
         console.error('Failed to open accounts folder:', error)
+        return {
+          success: false,
+          error: error.message,
+        }
+      }
+    })
+
+    // 新增：获取当前页面的数据（cookie和localStorage）
+    ipcMain.handle('get-current-page-data', async (event) => {
+      try {
+        const focusedWindow = this.getFocusedWindow()
+        if (!focusedWindow) {
+          throw new Error('No active window found')
+        }
+
+        const tab = focusedWindow.getFocusedTab()
+        if (!tab) {
+          throw new Error('No active tab found')
+        }
+
+        const url = tab.webContents.getURL()
+
+        // 获取localStorage数据
+        const localStorageData = await tab.webContents.executeJavaScript(`
+          (() => {
+            const data = {}
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i)
+              if (key) {
+                data[key] = localStorage.getItem(key)
+              }
+            }
+            return data
+          })()
+        `)
+
+        // 获取sessionStorage数据
+        const sessionStorageData = await tab.webContents.executeJavaScript(`
+          (() => {
+            const data = {}
+            for (let i = 0; i < sessionStorage.length; i++) {
+              const key = sessionStorage.key(i)
+              if (key) {
+                data[key] = sessionStorage.getItem(key)
+              }
+            }
+            return data
+          })()
+        `)
+
+        // 获取cookie数据
+        const cookies = await this.session.cookies.get({ url: url })
+
+        return {
+          success: true,
+          data: {
+            url: url,
+            localStorage: localStorageData,
+            sessionStorage: sessionStorageData,
+            cookies: cookies,
+          },
+        }
+      } catch (error) {
+        console.error('Failed to get current page data:', error)
+        return {
+          success: false,
+          error: error.message,
+        }
+      }
+    })
+
+    // 新增：设置页面数据（cookie和localStorage）
+    ipcMain.handle('set-page-data', async (event, data) => {
+      try {
+        const focusedWindow = this.getFocusedWindow()
+        if (!focusedWindow) {
+          throw new Error('No active window found')
+        }
+
+        const tab = focusedWindow.getFocusedTab()
+        if (!tab) {
+          throw new Error('No active tab found')
+        }
+
+        // 设置localStorage数据
+        if (data.localStorage) {
+          await tab.webContents.executeJavaScript(`
+            (() => {
+              const data = ${JSON.stringify(data.localStorage)}
+              Object.keys(data).forEach(key => {
+                localStorage.setItem(key, data[key])
+              })
+            })()
+          `)
+        }
+
+        // 设置sessionStorage数据
+        if (data.sessionStorage) {
+          await tab.webContents.executeJavaScript(`
+            (() => {
+              const data = ${JSON.stringify(data.sessionStorage)}
+              Object.keys(data).forEach(key => {
+                sessionStorage.setItem(key, data[key])
+              })
+            })()
+          `)
+        }
+
+        // 设置cookie数据
+        if (data.cookies && data.url) {
+          for (const cookie of data.cookies) {
+            await this.session.cookies.set({
+              url: data.url,
+              name: cookie.name,
+              value: cookie.value,
+              domain: cookie.domain,
+              path: cookie.path,
+              secure: cookie.secure,
+              httpOnly: cookie.httpOnly,
+              expirationDate: cookie.expirationDate,
+            })
+          }
+        }
+
+        return {
+          success: true,
+          message: 'Page data set successfully',
+        }
+      } catch (error) {
+        console.error('Failed to set page data:', error)
+        return {
+          success: false,
+          error: error.message,
+        }
+      }
+    })
+
+    // 新增：获取指定URL的cookie
+    ipcMain.handle('get-cookies-for-url', async (event, url) => {
+      try {
+        const cookies = await this.session.cookies.get({ url: url })
+        return {
+          success: true,
+          data: cookies,
+        }
+      } catch (error) {
+        console.error('Failed to get cookies for URL:', error)
+        return {
+          success: false,
+          error: error.message,
+        }
+      }
+    })
+
+    // 新增：设置cookie
+    ipcMain.handle('set-cookies', async (event, cookies, url) => {
+      try {
+        for (const cookie of cookies) {
+          await this.session.cookies.set({
+            url: url,
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain,
+            path: cookie.path,
+            secure: cookie.secure,
+            httpOnly: cookie.httpOnly,
+            expirationDate: cookie.expirationDate,
+          })
+        }
+        return {
+          success: true,
+          message: 'Cookies set successfully',
+        }
+      } catch (error) {
+        console.error('Failed to set cookies:', error)
         return {
           success: false,
           error: error.message,

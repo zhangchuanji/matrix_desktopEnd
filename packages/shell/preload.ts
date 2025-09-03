@@ -4,7 +4,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   captureLoginInfo: () => ipcRenderer.invoke('capture-login-info'),
   loadAccounts: () => ipcRenderer.invoke('load-accounts'),
   openAccountsFolder: () => ipcRenderer.invoke('open-accounts-folder'),
-  
+
+  // 新增：获取当前页面的cookie和localStorage数据
+  getCurrentPageData: () => ipcRenderer.invoke('get-current-page-data'),
+
+  // 新增：设置cookie和localStorage数据到新页面
+  setPageData: (data) => ipcRenderer.invoke('set-page-data', data),
+
+  // 新增：获取指定URL的cookie数据
+  getCookiesForUrl: (url) => ipcRenderer.invoke('get-cookies-for-url', url),
+
+  // 新增：设置cookie数据
+  setCookies: (cookies, url) => ipcRenderer.invoke('set-cookies', cookies, url),
+
   // 修复事件监听器 - 关键修复
   onAccountSaved: (callback) => {
     const handler = (event, ...args) => {
@@ -19,5 +31,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('account-saved', handler)
     // 返回清理函数
     return () => ipcRenderer.removeListener('account-saved', handler)
-  }
+  },
 })

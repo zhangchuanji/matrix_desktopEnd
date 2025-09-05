@@ -88,7 +88,7 @@ class Browser {
   windows = []
 
   urls = {
-    newtab: 'http://localhost/material',
+    newtab: 'http://192.168.110.50:80/',
   }
 
   constructor() {
@@ -97,6 +97,18 @@ class Browser {
 
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve
+    })
+
+    // 添加全局错误处理
+    process.on('uncaughtException', (error) => {
+      if (
+        error.message.includes('Invalid webContents') ||
+        error.message.includes('Render frame was disposed')
+      ) {
+        console.log('Caught webContents error, continuing...', error.message)
+        return // 不让这类错误崩溃应用
+      }
+      throw error // 其他错误正常抛出
     })
 
     app.whenReady().then(() => {
@@ -142,15 +154,24 @@ class Browser {
   }
 
   getWindowFromWebContents(webContents) {
-    let window
+    try {
+      if (!webContents || webContents.isDestroyed()) {
+        return null
+      }
 
-    if (this.popup && webContents === this.popup.browserWindow?.webContents) {
-      window = this.popup.parent
-    } else {
-      window = getParentWindowOfTab(webContents)
+      let window
+
+      if (this.popup && webContents === this.popup.browserWindow?.webContents) {
+        window = this.popup.parent
+      } else {
+        window = getParentWindowOfTab(webContents)
+      }
+
+      return window ? this.getWindowFromBrowserWindow(window) : null
+    } catch (error) {
+      console.error('Error in getWindowFromWebContents:', error)
+      return null
     }
-
-    return window ? this.getWindowFromBrowserWindow(window) : null
   }
 
   async init() {
@@ -831,7 +852,7 @@ class Browser {
 
   createInitialWindow() {
     this.createWindow({
-      initialUrl: 'http://localhost/material', // 添加这行
+      initialUrl: 'http://192.168.110.50:80/', // 添加这行
     })
   }
 
@@ -853,117 +874,31 @@ class Browser {
             action: 'allow',
             outlivesOpener: true,
             createWindow: async ({ webContents: guest, webPreferences }) => {
-              const win = this.getWindowFromWebContents(webContents)
-              const tab = win.tabs.create({ webContents: guest, webPreferences })
-
-              // 获取源页面的数据
               try {
-                const sourceUrl = webContents.getURL()
+                let win = this.getWindowFromWebContents(webContents) || this.getFocusedWindow()
 
-                // 获取localStorage数据
-                const localStorageData = await webContents.executeJavaScript(`
-                  (() => {
-                    const data = {}
-                    for (let i = 0; i < localStorage.length; i++) {
-                      const key = localStorage.key(i)
-                      if (key) {
-                        data[key] = localStorage.getItem(key)
-                      }
-                    }
-                    return data
-                  })()
-                `)
+                if (!win) {
+                  const newWin = this.createWindow({ initialUrl: details.url })
+                  return newWin.getFocusedTab().webContents
+                }
 
-                // 获取sessionStorage数据
-                const sessionStorageData = await webContents.executeJavaScript(`
-                  (() => {
-                    const data = {}
-                    for (let i = 0; i < sessionStorage.length; i++) {
-                      const key = sessionStorage.key(i)
-                      if (key) {
-                        data[key] = sessionStorage.getItem(key)
-                      }
-                    }
-                    return data
-                  })()
-                `)
+                const tab =
+                  guest && !guest.isDestroyed()
+                    ? win.tabs.create({ webContents: guest, webPreferences })
+                    : win.tabs.create()
 
-                // 获取cookie数据
-                const cookies = await this.session.cookies.get({ url: sourceUrl })
-
-                // 加载新页面
                 await tab.loadURL(details.url)
 
-                // 等待页面加载完成后设置数据
-                tab.webContents.once('dom-ready', async () => {
-                  try {
-                    // 设置localStorage数据
-                    if (Object.keys(localStorageData).length > 0) {
-                      await tab.webContents.executeJavaScript(`
-                        (() => {
-                          const data = ${JSON.stringify(localStorageData)}
-                          Object.keys(data).forEach(key => {
-                            localStorage.setItem(key, data[key])
-                          })
-                        })()
-                      `)
-                    }
+                if (!webContents.isDestroyed()) {
+                  this.transferDataToNewTab(webContents, tab, details.url)
+                }
 
-                    // 设置sessionStorage数据
-                    if (Object.keys(sessionStorageData).length > 0) {
-                      await tab.webContents.executeJavaScript(`
-                        (() => {
-                          const data = ${JSON.stringify(sessionStorageData)}
-                          Object.keys(data).forEach(key => {
-                            sessionStorage.setItem(key, data[key])
-                          })
-                        })()
-                      `)
-                    }
-
-                    // 设置cookie数据到新URL
-                    if (cookies.length > 0) {
-                      for (const cookie of cookies) {
-                        // 检查cookie是否适用于新URL
-                        const newUrl = new URL(details.url)
-                        const cookieDomain = cookie.domain.startsWith('.')
-                          ? cookie.domain.substring(1)
-                          : cookie.domain
-
-                        if (
-                          newUrl.hostname.endsWith(cookieDomain) ||
-                          newUrl.hostname === cookieDomain
-                        ) {
-                          await this.session.cookies.set({
-                            url: details.url,
-                            name: cookie.name,
-                            value: cookie.value,
-                            domain: cookie.domain,
-                            path: cookie.path,
-                            secure: cookie.secure,
-                            httpOnly: cookie.httpOnly,
-                            expirationDate: cookie.expirationDate,
-                          })
-                        }
-                      }
-                    }
-
-                    console.log('Successfully transferred data to new tab:', {
-                      localStorage: Object.keys(localStorageData).length,
-                      sessionStorage: Object.keys(sessionStorageData).length,
-                      cookies: cookies.length,
-                    })
-                  } catch (error) {
-                    console.error('Failed to transfer data to new tab:', error)
-                  }
-                })
+                return tab.webContents
               } catch (error) {
-                console.error('Failed to get source page data:', error)
-                // 如果获取数据失败，仍然加载页面
-                tab.loadURL(details.url)
+                console.error('Error in createWindow:', error)
+                // 简化错误处理，避免重复创建
+                return null
               }
-
-              return tab.webContents
             },
           }
         }
@@ -993,6 +928,181 @@ class Browser {
 
       menu.popup()
     })
+  }
+
+  // 添加数据传输方法
+  async transferDataToNewTab(sourceWebContents, targetTab, targetUrl) {
+    // 使用 setTimeout 而不是 setImmediate，给更多时间让窗口稳定
+    setTimeout(async () => {
+      try {
+        // 多重检查
+        if (!sourceWebContents || sourceWebContents.isDestroyed()) {
+          console.log('Source webContents unavailable for data transfer')
+          return
+        }
+
+        if (!targetTab || !targetTab.webContents || targetTab.webContents.isDestroyed()) {
+          console.log('Target tab unavailable for data transfer')
+          return
+        }
+
+        // 等待目标页面完全加载
+        if (targetTab.webContents.isLoading()) {
+          await new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+              console.log('Timeout waiting for page load')
+              resolve()
+            }, 5000) // 5秒超时
+
+            targetTab.webContents.once('did-finish-load', () => {
+              clearTimeout(timeout)
+              resolve()
+            })
+          })
+        }
+
+        // 再次检查状态
+        if (sourceWebContents.isDestroyed() || targetTab.webContents.isDestroyed()) {
+          console.log('WebContents destroyed during wait')
+          return
+        }
+
+        const sourceUrl = sourceWebContents.getURL()
+
+        // 并行获取数据，但有超时保护
+        const dataPromises = [
+          Promise.race([
+            this.getLocalStorageData(sourceWebContents),
+            new Promise((resolve) => setTimeout(() => resolve({}), 3000)),
+          ]),
+          Promise.race([
+            this.getSessionStorageData(sourceWebContents),
+            new Promise((resolve) => setTimeout(() => resolve({}), 3000)),
+          ]),
+          Promise.race([
+            this.session.cookies.get({ url: sourceUrl }),
+            new Promise((resolve) => setTimeout(() => resolve([]), 3000)),
+          ]),
+        ]
+
+        const [localStorageData, sessionStorageData, cookies] = await Promise.all(dataPromises)
+
+        // 最后一次检查
+        if (targetTab.webContents.isDestroyed()) {
+          console.log('Target destroyed before data setting')
+          return
+        }
+
+        // 设置数据
+        await this.setDataToTab(targetTab, localStorageData, sessionStorageData, cookies, targetUrl)
+
+        console.log('Data transfer completed successfully')
+      } catch (error) {
+        console.error('Failed to transfer data:', error)
+      }
+    }, 100) // 100ms 延迟
+  }
+
+  // 辅助方法
+  async getLocalStorageData(webContents) {
+    if (webContents.isDestroyed()) return {}
+
+    try {
+      return await webContents.executeJavaScript(`
+        (() => {
+          const data = {}
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key) {
+              data[key] = localStorage.getItem(key)
+            }
+          }
+          return data
+        })()
+      `)
+    } catch (error) {
+      console.error('Failed to get localStorage data:', error)
+      return {}
+    }
+  }
+
+  async getSessionStorageData(webContents) {
+    if (webContents.isDestroyed()) return {}
+
+    try {
+      return await webContents.executeJavaScript(`
+        (() => {
+          const data = {}
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i)
+            if (key) {
+              data[key] = sessionStorage.getItem(key)
+            }
+          }
+          return data
+        })()
+      `)
+    } catch (error) {
+      console.error('Failed to get sessionStorage data:', error)
+      return {}
+    }
+  }
+
+  async setDataToTab(tab, localStorageData, sessionStorageData, cookies, targetUrl) {
+    if (!tab || !tab.webContents || tab.webContents.isDestroyed()) {
+      return
+    }
+
+    try {
+      // 设置 localStorage
+      if (Object.keys(localStorageData).length > 0) {
+        await tab.webContents.executeJavaScript(`
+          (() => {
+            const data = ${JSON.stringify(localStorageData)}
+            Object.keys(data).forEach(key => {
+              localStorage.setItem(key, data[key])
+            })
+          })()
+        `)
+      }
+
+      // 设置 sessionStorage
+      if (Object.keys(sessionStorageData).length > 0) {
+        await tab.webContents.executeJavaScript(`
+          (() => {
+            const data = ${JSON.stringify(sessionStorageData)}
+            Object.keys(data).forEach(key => {
+              sessionStorage.setItem(key, data[key])
+            })
+          })()
+        `)
+      }
+
+      // 设置 cookies
+      if (cookies.length > 0) {
+        const newUrl = new URL(targetUrl)
+        for (const cookie of cookies) {
+          const cookieDomain = cookie.domain.startsWith('.')
+            ? cookie.domain.substring(1)
+            : cookie.domain
+
+          if (newUrl.hostname.endsWith(cookieDomain) || newUrl.hostname === cookieDomain) {
+            await this.session.cookies.set({
+              url: targetUrl,
+              name: cookie.name,
+              value: cookie.value,
+              domain: cookie.domain,
+              path: cookie.path,
+              secure: cookie.secure,
+              httpOnly: cookie.httpOnly,
+              expirationDate: cookie.expirationDate,
+            })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to set data to tab:', error)
+    }
   }
 
   // 添加广播方法 (增强版本)

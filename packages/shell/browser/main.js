@@ -473,12 +473,7 @@ class Browser {
             const key = localStorage.key(i)
             if (key) {
               const value = localStorage.getItem(key)
-              // 过滤敏感信息关键词
-              const sensitiveKeywords = ['password', 'token', 'auth', 'secret', 'key', 'session']
-              const isSensitive = sensitiveKeywords.some(keyword => 
-                key.toLowerCase().includes(keyword)
-              )
-              result.storage.localStorage[key] = isSensitive ? '[Sensitive Data]' : value
+              result.storage.localStorage[key] = value
             }
           }
         } catch (error) {
@@ -491,12 +486,7 @@ class Browser {
             const key = sessionStorage.key(i)
             if (key) {
               const value = sessionStorage.getItem(key)
-              // 过滤敏感信息关键词
-              const sensitiveKeywords = ['password', 'token', 'auth', 'secret', 'key', 'session']
-              const isSensitive = sensitiveKeywords.some(keyword => 
-                key.toLowerCase().includes(keyword)
-              )
-              result.storage.sessionStorage[key] = isSensitive ? '[Sensitive Data]' : value
+              result.storage.sessionStorage[key] = value
             }
           }
         } catch (error) {
@@ -564,18 +554,20 @@ class Browser {
                       dataCount: allData.length,
                       keys: allKeys.slice(0, 10), // 只保存前10个键
                       sampleData: allData.slice(0, 3).map(item => {
-                        // 过滤敏感数据
-                        if (typeof item === 'object' && item !== null) {
-                          const filtered = {}
-                          for (const [key, value] of Object.entries(item)) {
-                            const sensitiveKeywords = ['password', 'token', 'auth', 'secret', 'key', 'session']
-                            const isSensitive = sensitiveKeywords.some(keyword => 
-                              key.toLowerCase().includes(keyword)
-                            )
-                            filtered[key] = isSensitive ? '[Sensitive Data]' : value
-                          }
-                          return filtered
-                        }
+                        // 注释掉敏感数据过滤
+                        // if (typeof item === 'object' && item !== null) {
+                        //   const filtered = {}
+                        //   for (const [key, value] of Object.entries(item)) {
+                        //     const sensitiveKeywords = ['password', 'token', 'auth', 'secret', 'key', 'session']
+                        //     const isSensitive = sensitiveKeywords.some(keyword => 
+                        //       key.toLowerCase().includes(keyword)
+                        //     )
+                        //     filtered[key] = isSensitive ? '[Sensitive Data]' : value
+                        //   }
+                        //   return filtered
+                        // }
+                        
+                        // 直接返回原始数据
                         return item
                       })
                     })
@@ -828,7 +820,7 @@ class Browser {
         titleBarStyle: 'hidden',
         titleBarOverlay: {
           height: 31,
-          color: '#39375b',
+          color: '#f3f4f6',
           symbolColor: '#ffffff',
         },
         webPreferences: {

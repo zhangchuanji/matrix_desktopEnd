@@ -4,6 +4,9 @@ module.exports = {
     asar: true,
     extraResource: ['browser/ui'],
     icon: './assets/icon', // 会自动根据平台选择对应格式
+    // 添加这行来支持跨平台打包
+    platform: ['darwin', 'win32'],
+    arch: ['x64', 'arm64'], // 支持 x64 和 arm64 架构
   },
   makers: [
     {
@@ -15,8 +18,18 @@ module.exports = {
       platforms: ['darwin'],
       config: {
         icon: './assets/icon.icns',
-        name: 'Matrix Application'
-      }
+        name: 'Matrix Application',
+      },
+    },
+    {
+      name: '@electron-forge/maker-squirrel',
+      platforms: ['win32'],
+      config: {
+        name: 'matrix-application',
+        authors: 'Samuel Maddock',
+        description: 'Minimum Viable Browser shell built on Electron.',
+        exe: 'matrix-application.exe',
+      },
     },
   ],
   plugins: [

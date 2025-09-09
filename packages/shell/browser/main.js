@@ -94,6 +94,7 @@ class Browser {
   constructor() {
     // 修改账号数据文件路径 - 使用用户数据目录而不是应用目录
     this.accountsDataPath = path.join(app.getPath('userData'), 'accounts.json')
+    this.enableDataTransfer = false // 设置为 false 禁用数据传递
 
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve
@@ -881,7 +882,7 @@ class Browser {
 
                 await tab.loadURL(details.url)
 
-                if (!webContents.isDestroyed()) {
+                if (!webContents.isDestroyed() && this.enableDataTransfer) {
                   this.transferDataToNewTab(webContents, tab, details.url)
                 }
 

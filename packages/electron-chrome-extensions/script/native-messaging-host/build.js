@@ -23,7 +23,6 @@ async function createSEA() {
     await exec(`codesign --remove-signature ${exeName}`, { cwd: outDir })
   }
 
-  console.info(`Building ${exeName}…`)
   const buildCmd = [
     'npx postject',
     `${basePath}${exeName}`,
@@ -40,8 +39,6 @@ async function createSEA() {
 }
 
 async function installConfig(extensionIds) {
-  console.info(`Installing config…`)
-
   const hostName = 'com.crx.test'
   const manifest = {
     name: hostName,
@@ -94,7 +91,6 @@ async function installConfig(extensionIds) {
 async function main() {
   const extensionIdsArg = process.argv[2]
   if (!extensionIdsArg) {
-    console.error('Must pass in csv of allowed extension IDs')
     process.exit(1)
   }
 

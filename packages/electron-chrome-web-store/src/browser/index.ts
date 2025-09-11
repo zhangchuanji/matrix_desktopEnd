@@ -18,7 +18,6 @@ function resolvePreloadPath(modulePath?: string) {
     return createRequire(__dirname).resolve('electron-chrome-web-store/preload')
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.error(error)
     }
   }
 
@@ -140,12 +139,6 @@ export async function installChromeWebStore(opts: ElectronChromeWebStoreOptions 
   }
 
   if (!existsSync(preloadPath)) {
-    console.error(
-      new Error(
-        `electron-chrome-web-store: Preload file not found at "${preloadPath}". ` +
-          'See "Packaging the preload script" in the readme.',
-      ),
-    )
   }
 
   registerWebStoreApi(webStoreState)

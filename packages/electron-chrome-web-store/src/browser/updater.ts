@@ -202,7 +202,6 @@ async function fetchAvailableUpdates(extensions: Electron.Extension[]): Promise<
         return compareVersions(extension.version, update.version) < 0
       })
   } catch (error) {
-    console.error('Unable to read extension updates response', error)
     return []
   }
 
@@ -219,12 +218,6 @@ async function updateExtension(session: Electron.Session, update: ExtensionUpdat
   // was contained in a versioned directory structure.
   const oldVersionDirectoryName = path.basename(oldExtension.path)
   if (!oldVersionDirectoryName.startsWith(oldExtension.version)) {
-    console.error(
-      `updateExtension: extension ${extensionId} must conform to versioned directory names`,
-      {
-        oldPath: oldExtension.path,
-      },
-    )
     d('skipping %s update due to invalid install path %s', extensionId, oldExtension.path)
     return
   }
@@ -265,10 +258,7 @@ async function installUpdates(session: Electron.Session, updates: ExtensionUpdat
   for (const update of updates) {
     try {
       await updateExtension(session, update)
-    } catch (error) {
-      console.error(`checkForUpdates: Error updating extension ${update.id}`)
-      console.error(error)
-    }
+    } catch (error) {}
   }
 }
 

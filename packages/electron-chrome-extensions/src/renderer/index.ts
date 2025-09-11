@@ -17,11 +17,9 @@ export const injectExtensionAPIs = () => {
     const callback = typeof args[args.length - 1] === 'function' ? args.pop() : undefined
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(fnName, args)
     }
 
     if (options.noop) {
-      console.warn(`${fnName} is not yet implemented.`)
       if (callback) callback(options.defaultResponse)
       return Promise.resolve(options.defaultResponse)
     }
@@ -36,12 +34,10 @@ export const injectExtensionAPIs = () => {
       result = await ipcRenderer.invoke('crx-msg', extensionId, fnName, ...args)
     } catch (e) {
       // TODO: Set chrome.runtime.lastError?
-      console.error(e)
       result = undefined
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(fnName, '(result)', result)
     }
 
     if (callback) {
@@ -255,9 +251,7 @@ export const injectExtensionAPIs = () => {
             if (details.imageData) {
               if (manifest.manifest_version === 3) {
                 // TODO(mv3): might need to use offscreen document to serialize
-                console.warn(
-                  'action.setIcon with imageData is not yet supported by electron-chrome-extensions',
-                )
+
                 details.imageData = undefined
               } else if (details.imageData instanceof ImageData) {
                 details.imageData = imageData2base64(details.imageData) as any
@@ -667,7 +661,6 @@ export const injectExtensionAPIs = () => {
   }
 
   if (!process.contextIsolated) {
-    console.warn(`injectExtensionAPIs: context isolation disabled in ${location.href}`)
     mainWorldScript()
     return
   }
@@ -685,8 +678,5 @@ export const injectExtensionAPIs = () => {
       // TODO(mv3): remove webFrame usage
       webFrame.executeJavaScript(`(${mainWorldScript}());`)
     }
-  } catch (error) {
-    console.error(`injectExtensionAPIs error (${location.href})`)
-    console.error(error)
-  }
+  } catch (error) {}
 }

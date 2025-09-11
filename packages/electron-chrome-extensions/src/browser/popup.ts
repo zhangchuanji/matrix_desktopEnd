@@ -102,9 +102,7 @@ export class PopupView extends EventEmitter {
 
     try {
       await win.webContents.loadURL(url)
-    } catch (e) {
-      console.error(e)
-    }
+    } catch (e) {}
 
     if (this.destroyed) return
 

@@ -32,7 +32,6 @@ async function runElectronTests() {
   const testResultsDir = process.env.ELECTRON_TEST_RESULTS_DIR
 
   try {
-    console.info('\nRunning:')
     if (testResultsDir) {
       process.env.MOCHA_FILE = path.join(testResultsDir, `test-results.xml`)
     }
@@ -43,10 +42,7 @@ async function runElectronTests() {
 
   if (errors.length !== 0) {
     for (const err of errors) {
-      console.error('\n\nRunner Failed:', err[0])
-      console.error(err[1])
     }
-    console.log(`${fail} Electron test runners have failed`)
     process.exit(1)
   }
 }
@@ -70,16 +66,12 @@ async function runMainProcessElectronTests() {
     if (status) {
       const textStatus =
         process.platform === 'win32' ? `0x${status.toString(16)}` : status.toString()
-      console.log(`${fail} Electron tests failed with code ${textStatus}.`)
     } else {
-      console.log(`${fail} Electron tests failed with kill signal ${signal}.`)
     }
     process.exit(1)
   }
-  console.log(`${pass} Electron main process tests passed.`)
 }
 
 main().catch((error) => {
-  console.error('An error occurred inside the spec runner:', error)
   process.exit(1)
 })

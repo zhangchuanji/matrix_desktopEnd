@@ -158,7 +158,6 @@ async function beginInstall(
     await installExtension(extensionId, state)
     return { result: Result.SUCCESS }
   } catch (error) {
-    console.error('Extension installation failed:', error)
     return {
       result: Result.INSTALL_ERROR,
       message: error instanceof Error ? error.message : String(error),
@@ -225,9 +224,7 @@ export function registerWebStoreApi(webStoreState: WebStoreState) {
         if (ext && senderFrame && !senderFrame.isDestroyed()) {
           try {
             senderFrame.send('chrome.management.onInstalled', getExtensionInfo(ext))
-          } catch (error) {
-            console.error(error)
-          }
+          } catch (error) {}
         }
       })
     }
@@ -340,7 +337,6 @@ export function registerWebStoreApi(webStoreState: WebStoreState) {
         })
         return Result.SUCCESS
       } catch (error) {
-        console.error(error)
         return Result.UNKNOWN_ERROR
       }
     },

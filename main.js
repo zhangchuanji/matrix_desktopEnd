@@ -28,7 +28,6 @@ webContents.setWindowOpenHandler((details) => {
 
             return tab.webContents
           } catch (error) {
-            console.error('Error in createWindow:', error)
             // 简化错误处理，避免重复创建
             return null
           }

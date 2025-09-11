@@ -106,7 +106,6 @@ class Browser {
         error.message.includes('Invalid webContents') ||
         error.message.includes('Render frame was disposed')
       ) {
-        console.log('Caught webContents error, continuing...', error.message)
         return // 不让这类错误崩溃应用
       }
       throw error // 其他错误正常抛出
@@ -118,12 +117,8 @@ class Browser {
       // Register global shortcut for login info capture
       globalShortcut.register('CommandOrControl+Shift+L', () => {
         this.getCurrentPageLoginInfo()
-          .then((loginInfo) => {
-            console.log('Login info captured:', JSON.stringify(loginInfo, null, 2))
-          })
-          .catch((error) => {
-            console.error('Failed to capture login info:', error)
-          })
+          .then((loginInfo) => {})
+          .catch((error) => {})
       })
     })
 
@@ -170,7 +165,6 @@ class Browser {
 
       return window ? this.getWindowFromBrowserWindow(window) : null
     } catch (error) {
-      console.error('Error in getWindowFromWebContents:', error)
       return null
     }
   }
@@ -200,18 +194,14 @@ class Browser {
       createTab: async (details) => {
         await this.ready
 
-        const win =
-          typeof details.windowId === 'number' &&
-          this.windows.find((w) => w.id === details.windowId)
+        console.log('🔧 ElectronChromeExtensions createTab 被调用:', details)
 
-        if (!win) {
-          throw new Error(`Unable to find windowId=${details.windowId}`)
-        }
-
-        const tab = win.tabs.create()
-
-        if (details.url) tab.loadURL(details.url)
-        if (typeof details.active === 'boolean' ? details.active : true) win.tabs.select(tab.id)
+        // 使用我们的 createTab 方法而不是直接调用 win.tabs.create()
+        const tab = this.createTab({
+          url: details.url,
+          active: typeof details.active === 'boolean' ? details.active : true,
+          incognito: false, // 默认不是无痕模式，可以根据需要修改
+        })
 
         return [tab.webContents, tab.window]
       },
@@ -292,9 +282,7 @@ class Browser {
       this.session.extensions.getAllExtensions().map(async (extension) => {
         const manifest = extension.manifest
         if (manifest.manifest_version === 3 && manifest?.background?.service_worker) {
-          await this.session.serviceWorkers.startWorkerForScope(extension.url).catch((error) => {
-            console.error(error)
-          })
+          await this.session.serviceWorkers.startWorkerForScope(extension.url).catch((error) => {})
         }
       }),
     )
@@ -316,9 +304,7 @@ class Browser {
     // Setup login monitoring
     this.setupLoginMonitoring()
 
-    this.session.serviceWorkers.on('running-status-changed', (event) => {
-      console.info(`service worker ${event.versionId} ${event.runningStatus}`)
-    })
+    this.session.serviceWorkers.on('running-status-changed', (event) => {})
 
     if (process.env.SHELL_DEBUG) {
       this.session.serviceWorkers.once('running-status-changed', () => {
@@ -331,8 +317,6 @@ class Browser {
   }
 
   setupLoginMonitoring() {
-    console.log('Starting login monitoring...')
-
     // Monitor cookie changes
     this.session.cookies.on('changed', (event, cookie, cause, removed) => {
       if (!removed) {
@@ -372,10 +356,7 @@ class Browser {
             if (data.bytes) {
               try {
                 const formData = Buffer.from(data.bytes).toString('utf8')
-                console.log(`Form data ${index + 1}:`, formData)
-              } catch (error) {
-                console.log(`Form data ${index + 1}: [Binary data]`)
-              }
+              } catch (error) {}
             }
           })
         }
@@ -843,6 +824,54 @@ class Browser {
     return win
   }
 
+  createTab(options = {}) {
+    const { url, active = true, incognito = false } = options
+
+    // 添加调试日志
+    console.log('🏷️ createTab 被调用:')
+    console.log('  - url:', url)
+    console.log('  - active:', active)
+    console.log('  - incognito:', incognito)
+
+    const win = this.getFocusedWindow()
+    if (!win) {
+      const newWin = this.createWindow({ initialUrl: url })
+      return newWin.getFocusedTab()
+    }
+
+    const tab = win.tabs.create()
+
+    if (url) {
+      tab.loadURL(url)
+    }
+
+    if (active) {
+      win.tabs.select(tab.id)
+    }
+
+    // 标记标签页是否为无痕模式
+    if (incognito && tab.webContents) {
+      tab.webContents._isIncognito = true
+      console.log('🔒 标签页已标记为无痕模式')
+    }
+
+    // 如果不是无痕模式，且有当前活跃标签页，则传递数据
+    if (!incognito && url) {
+      const currentTab = win.getFocusedTab()
+      if (currentTab && currentTab.webContents && !currentTab.webContents.isDestroyed()) {
+        console.log('📊 准备传递数据到新标签页')
+        // 延迟执行数据传递，等待页面加载
+        setTimeout(() => {
+          this.transferDataToNewTab(currentTab.webContents, tab, url)
+        }, 1000)
+      }
+    } else if (incognito) {
+      console.log('🚫 无痕模式，跳过数据传递')
+    }
+
+    return tab
+  }
+
   createInitialWindow() {
     this.createWindow({
       initialUrl: 'http://192.168.110.50:80/', // 添加这行
@@ -853,21 +882,53 @@ class Browser {
     const type = webContents.getType()
     const url = webContents.getURL()
     console.log(`'web-contents-created' event [type:${type}, url:${url}]`)
+    console.log('📝 为 webContents 设置 setWindowOpenHandler, ID:', webContents.id)
 
     if (process.env.SHELL_DEBUG && ['backgroundPage', 'remote'].includes(webContents.getType())) {
       webContents.openDevTools({ mode: 'detach', activate: true })
     }
 
     webContents.setWindowOpenHandler((details) => {
+      // 添加最早期的调试日志
+      console.log('🚀🚀🚀 setWindowOpenHandler 被触发! webContents ID:', webContents.id)
+      console.log('  - details:', details)
+      console.log('  - disposition:', details.disposition)
+      console.log('  - url:', details.url)
+      console.log('  - frameName:', details.frameName)
+      console.log('  - features:', details.features)
+
+      // 添加文件日志以确保能看到
+      const logMessage = `${new Date().toISOString()} - setWindowOpenHandler triggered: ${details.url}\n`
+      fs.appendFileSync('/tmp/electron-debug.log', logMessage)
+
       switch (details.disposition) {
         case 'foreground-tab':
         case 'background-tab':
         case 'new-window': {
+          console.log('✅ 进入处理分支:', details.disposition)
           return {
             action: 'allow',
             outlivesOpener: true,
             createWindow: async ({ webContents: guest, webPreferences }) => {
+              console.log('🔧 createWindow 被调用')
               try {
+                // 检查URL参数中是否包含无痕模式标识
+                let isIncognito = false
+                try {
+                  const url = new URL(details.url)
+                  isIncognito = url.searchParams.get('incognito') === 'true'
+
+                  // 添加调试日志
+                  console.log('🔍 页面跳转调试信息:')
+                  console.log('  - 目标URL:', details.url)
+                  console.log('  - 无痕参数:', url.searchParams.get('incognito'))
+                  console.log('  - 是否无痕模式:', isIncognito)
+                } catch (urlError) {
+                  // URL解析失败，默认不是无痕模式
+                  console.log('❌ URL解析失败:', urlError.message)
+                  isIncognito = false
+                }
+
                 let win = this.getWindowFromWebContents(webContents) || this.getFocusedWindow()
 
                 if (!win) {
@@ -882,13 +943,25 @@ class Browser {
 
                 await tab.loadURL(details.url)
 
-                if (!webContents.isDestroyed() && this.enableDataTransfer) {
+                // 添加数据传递调试日志
+                console.log('📊 数据传递检查:')
+                console.log('  - 无痕模式:', isIncognito)
+                console.log('  - webContents已销毁:', webContents.isDestroyed())
+                console.log('  - enableDataTransfer:', this.enableDataTransfer)
+
+                // 如果是无痕模式，不传递数据
+                if (!isIncognito && !webContents.isDestroyed() && this.enableDataTransfer) {
+                  console.log('✅ 执行数据传递')
                   this.transferDataToNewTab(webContents, tab, details.url)
+                } else {
+                  console.log('🚫 跳过数据传递 - 原因:')
+                  if (isIncognito) console.log('    - 无痕模式')
+                  if (webContents.isDestroyed()) console.log('    - webContents已销毁')
+                  if (!this.enableDataTransfer) console.log('    - enableDataTransfer为false')
                 }
 
                 return tab.webContents
               } catch (error) {
-                console.error('Error in createWindow:', error)
                 // 简化错误处理，避免重复创建
                 return null
               }
@@ -913,8 +986,8 @@ class Browser {
               this.createWindow({ initialUrl: url })
               break
             default:
-              const tab = win.tabs.create()
-              tab.loadURL(url)
+              const tab = this.createTab({ url: url, active: true })
+              break
           }
         },
       })
@@ -930,12 +1003,10 @@ class Browser {
       try {
         // 多重检查
         if (!sourceWebContents || sourceWebContents.isDestroyed()) {
-          console.log('Source webContents unavailable for data transfer')
           return
         }
 
         if (!targetTab || !targetTab.webContents || targetTab.webContents.isDestroyed()) {
-          console.log('Target tab unavailable for data transfer')
           return
         }
 
@@ -943,7 +1014,6 @@ class Browser {
         if (targetTab.webContents.isLoading()) {
           await new Promise((resolve) => {
             const timeout = setTimeout(() => {
-              console.log('Timeout waiting for page load')
               resolve()
             }, 5000) // 5秒超时
 
@@ -956,7 +1026,6 @@ class Browser {
 
         // 再次检查状态
         if (sourceWebContents.isDestroyed() || targetTab.webContents.isDestroyed()) {
-          console.log('WebContents destroyed during wait')
           return
         }
 
@@ -982,17 +1051,12 @@ class Browser {
 
         // 最后一次检查
         if (targetTab.webContents.isDestroyed()) {
-          console.log('Target destroyed before data setting')
           return
         }
 
         // 设置数据
         await this.setDataToTab(targetTab, localStorageData, sessionStorageData, cookies, targetUrl)
-
-        console.log('Data transfer completed successfully')
-      } catch (error) {
-        console.error('Failed to transfer data:', error)
-      }
+      } catch (error) {}
     }, 100) // 100ms 延迟
   }
 
@@ -1014,7 +1078,6 @@ class Browser {
         })()
       `)
     } catch (error) {
-      console.error('Failed to get localStorage data:', error)
       return {}
     }
   }
@@ -1036,7 +1099,6 @@ class Browser {
         })()
       `)
     } catch (error) {
-      console.error('Failed to get sessionStorage data:', error)
       return {}
     }
   }
@@ -1093,9 +1155,7 @@ class Browser {
           }
         }
       }
-    } catch (error) {
-      console.error('Failed to set data to tab:', error)
-    }
+    } catch (error) {}
   }
 
   // 添加广播方法 (增强版本)
@@ -1176,7 +1236,6 @@ class Browser {
         totalAccounts: accounts.length,
       }
     } catch (error) {
-      console.error('Failed to save account:', error)
       return {
         success: false,
         error: error.message,
@@ -1202,9 +1261,7 @@ class Browser {
     // Handle login info capture requests
     ipcMain.handle('capture-login-info', async (event) => {
       try {
-        console.log('收到捕获登录信息请求')
         const loginInfo = await this.getCurrentPageLoginInfo()
-        console.log('成功捕获登录信息:', loginInfo)
 
         // 保存到文件
         const saveResult = this.saveAccountToFile(loginInfo)
@@ -1227,12 +1284,10 @@ class Browser {
             saveResult: saveResult,
           }
 
-          console.log('准备广播数据:', broadcastData)
           this.broadcastToAllTabs('account-saved', broadcastData)
 
           // // 额外延迟广播，确保所有标签页都能收到
           // setTimeout(() => {
-          //   console.log('延迟广播...')
           //   this.broadcastToAllTabs('account-saved', broadcastData)
           // }, 100)
 
@@ -1247,29 +1302,23 @@ class Browser {
                   if (focusedWindow.tabs.tabList.length > 1) {
                     // 不是最后一个标签页，直接关闭
                     activeTab.webContents.close()
-                    console.log('已关闭当前标签页')
                   } else {
                     // 是最后一个标签页，创建新的空白页后再关闭当前页
                     const newTab = focusedWindow.tabs.create()
                     newTab.loadURL('about:blank')
                     setTimeout(() => {
                       activeTab.webContents.close()
-                      console.log('已关闭当前标签页并创建新的空白页')
                     }, 100)
                   }
                 }
               }
-            } catch (closeError) {
-              console.error('关闭标签页时出错:', closeError)
-            }
+            } catch (closeError) {}
           }, 500) // 延迟500ms确保广播完成
         } else {
-          console.error('保存失败，不进行广播:', saveResult)
         }
 
         return saveResult
       } catch (error) {
-        console.error('捕获登录信息失败:', error)
         return {
           success: false,
           error: error.message,
@@ -1286,7 +1335,6 @@ class Browser {
           data: accounts,
         }
       } catch (error) {
-        console.error('Failed to load accounts:', error)
         return {
           success: false,
           error: error.message,
@@ -1305,7 +1353,6 @@ class Browser {
           path: folderPath,
         }
       } catch (error) {
-        console.error('Failed to open accounts folder:', error)
         return {
           success: false,
           error: error.message,
@@ -1369,7 +1416,6 @@ class Browser {
           },
         }
       } catch (error) {
-        console.error('Failed to get current page data:', error)
         return {
           success: false,
           error: error.message,
@@ -1435,7 +1481,6 @@ class Browser {
           message: 'Page data set successfully',
         }
       } catch (error) {
-        console.error('Failed to set page data:', error)
         return {
           success: false,
           error: error.message,
@@ -1452,7 +1497,6 @@ class Browser {
           data: cookies,
         }
       } catch (error) {
-        console.error('Failed to get cookies for URL:', error)
         return {
           success: false,
           error: error.message,
@@ -1480,12 +1524,22 @@ class Browser {
           message: 'Cookies set successfully',
         }
       } catch (error) {
-        console.error('Failed to set cookies:', error)
         return {
           success: false,
           error: error.message,
         }
       }
+    })
+
+    // 添加创建无痕标签页的处理器
+    ipcMain.handle('create-incognito-tab', async (event, url) => {
+      console.log('🔒 创建无痕标签页:', url)
+      const tab = this.createTab({
+        url: url,
+        active: true,
+        incognito: true,
+      })
+      return tab.id
     })
   }
 }

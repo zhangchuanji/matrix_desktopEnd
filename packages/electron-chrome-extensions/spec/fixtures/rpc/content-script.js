@@ -33,7 +33,6 @@ async function exec(action) {
       result = await send()
       break
     } catch (e) {
-      console.error(e)
       await new Promise((resolve) => setTimeout(resolve, 100)) // sleep
     }
   }

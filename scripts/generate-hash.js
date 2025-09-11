@@ -1,7 +1,6 @@
 const nodeCrypto = require('node:crypto')
 
 if (process.argv.length !== 3) {
-  console.error('Usage: generate-hash.js <input>')
   process.exit(1)
 }
 
@@ -13,4 +12,3 @@ function generateHash(input) {
 
 const arg = process.argv[2]
 const hash = generateHash(arg)
-console.log(hash)

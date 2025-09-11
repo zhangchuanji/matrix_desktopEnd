@@ -68,5 +68,3 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   // Respond asynchronously
   return true
 })
-
-console.log('background-script-evaluated')

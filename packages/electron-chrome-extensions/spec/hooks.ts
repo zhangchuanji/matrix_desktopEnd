@@ -161,9 +161,7 @@ export const useExtensionBrowser = (opts: {
 export const useBackgroundPageLogging = () => {
   app.on('web-contents-created', (event, wc) => {
     if (wc.getType() === 'backgroundPage') {
-      wc.on('console-message', (ev, level, message, line, sourceId) => {
-        console.log(`(${sourceId}) ${message}`)
-      })
+      wc.on('console-message', (ev, level, message, line, sourceId) => {})
     }
   })
 }

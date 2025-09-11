@@ -25,7 +25,6 @@ import { resolvePartition } from './partition'
 function checkVersion() {
   const electronVersion = process.versions.electron
   if (electronVersion && parseInt(electronVersion.split('.')[0], 10) < 35) {
-    console.warn('electron-chrome-extensions requires electron@>=35.0.0')
   }
 }
 
@@ -35,7 +34,6 @@ function resolvePreloadPath(modulePath?: string) {
     return createRequire(__dirname).resolve('electron-chrome-extensions/preload')
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.error(error)
     }
   }
 
@@ -203,12 +201,6 @@ export class ElectronChromeExtensions extends EventEmitter {
     }
 
     if (!existsSync(preloadPath)) {
-      console.error(
-        new Error(
-          `electron-chrome-extensions: Preload file not found at "${preloadPath}". ` +
-            'See "Packaging the preload script" in the readme.',
-        ),
-      )
     }
   }
 
@@ -250,9 +242,7 @@ export class ElectronChromeExtensions extends EventEmitter {
    * @deprecated Extension hosts are now tracked lazily when they send
    * extension IPCs to the main process.
    */
-  addExtensionHost(host: Electron.WebContents) {
-    console.warn('ElectronChromeExtensions.addExtensionHost() is deprecated')
-  }
+  addExtensionHost(host: Electron.WebContents) {}
 
   /**
    * Get collection of menu items managed by the `chrome.contextMenus` API.
@@ -292,7 +282,6 @@ export class ElectronChromeExtensions extends EventEmitter {
    * @deprecated Not needed in Electron >=12.
    */
   addExtension(extension: Electron.Extension) {
-    console.warn('ElectronChromeExtensions.addExtension() is deprecated')
     this.api.browserAction.processExtension(extension)
   }
 
@@ -302,7 +291,6 @@ export class ElectronChromeExtensions extends EventEmitter {
    * @deprecated Not needed in Electron >=12.
    */
   removeExtension(extension: Electron.Extension) {
-    console.warn('ElectronChromeExtensions.removeExtension() is deprecated')
     this.api.browserAction.removeActions(extension.id)
   }
 }

@@ -327,7 +327,6 @@ export class ExtensionRouter {
 
     const eventListeners = listeners.get(eventName)
     if (!eventListeners) {
-      console.error(`event listener not registered for '${eventName}'`)
       return
     }
 
@@ -440,11 +439,9 @@ export class ExtensionRouter {
           })
           .catch((error) => {
             d('failed to send %s to %s', eventName, extensionId)
-            console.error(error)
           })
       } else {
         if (listener.host.isDestroyed()) {
-          console.error(`Unable to send '${eventName}' to extension host for ${extensionId}`)
           return
         }
         listener.host.send(ipcName, ...args)

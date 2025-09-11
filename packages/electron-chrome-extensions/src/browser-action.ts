@@ -415,11 +415,7 @@ export const injectBrowserAction = () => {
       private fetchState = async () => {
         try {
           await browserAction.getState(this.partition || DEFAULT_PARTITION)
-        } catch {
-          console.error(
-            `browser-action-list failed to update [tab: ${this.tab}, partition: '${this.partition}']`,
-          )
-        }
+        } catch {}
       }
 
       private update = (state: any) => {

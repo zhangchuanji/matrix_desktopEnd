@@ -324,7 +324,6 @@ export class ContextMenusAPI {
 
     const tab = this.ctx.store.tabDetailsCache.get(webContents.id)
     if (!tab) {
-      console.error(`[Extensions] Unable to find tab for id=${webContents.id}`)
       return
     }
 

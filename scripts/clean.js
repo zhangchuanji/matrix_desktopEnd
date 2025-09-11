@@ -6,7 +6,6 @@ function cleanDirectory(dirPath) {
 
   const parentDir = path.basename(path.dirname(resolvedPath))
   if (parentDir !== 'packages') {
-    console.error(`Error: Directory "${resolvedPath}" is not inside a "packages" folder`)
     return
   }
 
@@ -14,7 +13,6 @@ function cleanDirectory(dirPath) {
 
   if (fs.existsSync(distPath)) {
     fs.rmSync(distPath, { recursive: true, force: true })
-    console.log(`deleted: ${distPath}`)
   }
 }
 

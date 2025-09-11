@@ -80,7 +80,6 @@ const DEBUG = process.env.NODE_ENV === 'development'
 
 function log(...args: any[]) {
   if (!DEBUG) return
-  console.debug(...args)
 }
 
 function setupChromeWebStoreApi() {

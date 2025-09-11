@@ -28,7 +28,6 @@ Module.globalPaths.push(path.resolve(__dirname, '../spec/node_modules'))
 
 // We want to terminate on errors, not throw up a dialog
 process.on('uncaughtException', (err) => {
-  console.error('Unhandled exception in main spec runner:', err)
   process.exit(1)
 })
 
@@ -79,8 +78,6 @@ const cleanupTestSessions = async () => {
 
   sessions = sessions.filter((session) => session.startsWith('crx-'))
   if (sessions.length === 0) return
-
-  console.log(`Cleaning up ${sessions.length} sessions from previous test runners`)
 
   for (const session of sessions) {
     const sessionPath = path.join(sessionsPath, session)
@@ -180,7 +177,5 @@ app
     const runner = mocha.run(cb)
   })
   .catch((err) => {
-    console.error('An error occurred while running the spec-main spec runner')
-    console.error(err)
     process.exit(1)
   })

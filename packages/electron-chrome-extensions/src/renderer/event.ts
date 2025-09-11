@@ -16,7 +16,6 @@ export const addExtensionListener = (extensionId: string, name: string, callback
 
   ipcRenderer.addListener(formatIpcName(name), function (event, ...args) {
     if (process.env.NODE_ENV === 'development') {
-      console.log(name, '(result)', ...args)
     }
     callback(...args)
   })

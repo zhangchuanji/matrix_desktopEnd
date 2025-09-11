@@ -205,18 +205,14 @@ class WebUI {
         return
       }
 
-      console.log('开始捕获登录信息...', activeTab.url)
-
       // Use electronAPI to capture login info
       const result = await window.electronAPI.captureLoginInfo()
 
       if (result.success) {
-        console.log('Captured login info:', result.data)
       } else {
         alert('保存失败: ' + result.error)
       }
     } catch (error) {
-      console.error('Save account error:', error)
       alert('保存账号信息时出错: ' + error.message)
     }
   }

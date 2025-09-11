@@ -10,9 +10,6 @@ export async function readUrlOverrides(ctx: ExtensionContext, extension: Electro
     for (const [name, uri] of Object.entries(manifest.chrome_url_overrides!)) {
       const validatedPath = await validateExtensionResource(extension, uri)
       if (!validatedPath) {
-        console.error(
-          `Extension ${extension.id} attempted to override ${name} with invalid resource: ${uri}`,
-        )
         continue
       }
 

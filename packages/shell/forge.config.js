@@ -1,6 +1,6 @@
 module.exports = {
   packagerConfig: {
-    name: 'Matrix Application',
+    name: 'AIGEO 增长引擎',
     asar: true,
     extraResource: ['browser/ui'],
     icon: './assets/icon', // 会自动根据平台选择对应格式
@@ -18,7 +18,7 @@ module.exports = {
       platforms: ['darwin'],
       config: {
         icon: './assets/icon.icns',
-        name: 'Matrix Application',
+        name: 'AIGEO 增长引擎',
       },
     },
     {

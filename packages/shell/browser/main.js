@@ -88,7 +88,7 @@ class Browser {
   windows = []
 
   urls = {
-    newtab: 'http://192.168.110.50:80/',
+    newtab: 'http://36.141.100.123:9000',
   }
 
   constructor() {
@@ -874,7 +874,7 @@ class Browser {
 
   createInitialWindow() {
     this.createWindow({
-      initialUrl: 'http://192.168.110.50:80/', // 添加这行
+      initialUrl: 'http://36.141.100.123:9000', // 添加这行
     })
   }
 

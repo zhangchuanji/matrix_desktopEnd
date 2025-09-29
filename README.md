@@ -1,10 +1,11 @@
-# Matrix Application - Electron Browser Shell
+# AIGEO 增长引擎 - Electron Browser Shell
 
 一个基于Electron构建的最小化浏览器shell应用程序，支持Chrome扩展和现代Web技术。
 
 ## 项目简介
 
 本项目是一个功能完整的Electron浏览器shell，提供了：
+
 - Chrome扩展支持
 - 上下文菜单功能
 - Chrome Web Store集成

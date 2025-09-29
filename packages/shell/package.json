@@ -29,6 +29,8 @@
     "@electron-forge/plugin-webpack": "^7.5.0",
     "copy-webpack-plugin": "^11.0.0",
     "cross-env": "^7.0.2",
-    "electron": "^37.1.0"
+    "electron": "^37.1.0",
+    "sharp": "^0.34.4",
+    "svg2png-many": "^0.0.7"
   }
 }

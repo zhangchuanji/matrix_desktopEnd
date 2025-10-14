@@ -1,7 +1,7 @@
 const makers = [
   {
     name: '@electron-forge/maker-zip',
-    platforms: ['darwin', 'win64'],
+    platforms: ['darwin', 'win32'],
     config: {
       arch: ['x64', 'arm64'],
     },
@@ -17,7 +17,7 @@ const makers = [
   },
   {
     name: '@electron-forge/maker-squirrel',
-    platforms: ['win64'],
+    platforms: ['win32'],
     config: {
       name: 'matrix-application', // 内部名称使用英文
       authors: 'Samuel Maddock',

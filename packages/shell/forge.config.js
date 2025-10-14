@@ -36,35 +36,23 @@ const makers = [
 // WiX maker - 生成MSI安装包（需要安装WiX Toolset）
 // 安装WiX Toolset: https://wixtoolset.org/releases/
 // 或使用命令: choco install wixtoolset
-// 暂时注释掉，避免WiX Toolset依赖错误
-/*
-if (process.platform === 'win32') {
-  makers.push({
-    name: '@electron-forge/maker-wix',
-    platforms: ['win32'],
-    config: {
-      name: 'AIGEO.GrowthEngine', // 包ID必须使用英文和点号
-      description: 'AIGEO Growth Engine - AI-driven growth analysis tool',
-      manufacturer: 'AIGEO Team',
-      version: '1.0.0',
-      arch: 'x64',
-      programFilesFolderName: 'AIGEO',
-      shortName: 'AIGEO',
-      exe: 'matrix-application', // exe名称使用英文
-      productName: 'AIGEO 增长引擎', // 产品显示名称可以使用中文
-      upgradeCode: '12345678-1234-1234-1234-123456789012', // 固定的升级代码
-      ui: {
-        chooseDirectory: true,
-        enabled: true,
-      },
-      features: {
-        autoUpdate: true,
-        autoLaunch: true,
-      },
+// 启用 WiX MSI 安装包，提供标准的 Windows 安装体验
+makers.push({
+  name: '@electron-forge/maker-wix',
+  platforms: ['win32'], // 只在 Windows 平台上实际运行
+  config: {
+    name: 'AIGEO-GrowthEngine',
+    description: 'AI驱动的增长分析工具',
+    manufacturer: 'AIGEO Team',
+    version: '1.0.0',
+    arch: ['x64'],
+    programFilesFolderName: 'AIGEO',
+    shortcutFolderName: 'AIGEO 增长引擎',
+    ui: {
+      chooseDirectory: true,
     },
-  })
-}
-*/
+  },
+})
 
 module.exports = {
   packagerConfig: {

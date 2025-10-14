@@ -1,0 +1,46 @@
+name: Build Windows MSI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'yarn'
+        
+    - name: Install WiX Toolset
+      run: |
+        choco install wixtoolset -y
+        
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+      
+    - name: Build application
+      run: |
+        cd packages/shell
+        yarn make
+        
+    - name: Upload MSI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-msi-installer
+        path: packages/shell/out/make/wix/x64/*.msi
+        
+    - name: Upload Squirrel artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-squirrel-installer
+        path: packages/shell/out/make/squirrel.windows/x64/*.exe

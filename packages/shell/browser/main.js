@@ -394,16 +394,10 @@ class Browser {
       throw new Error('No active tab found')
     }
 
-    // 检查 WebContents 是否有效
-    if (!tab.webContents || tab.webContents.isDestroyed()) {
-      throw new Error('WebContents has been destroyed')
-    }
-
-    const webContents = tab.webContents
-    const url = webContents.getURL()
+    const url = tab.webContents.getURL()
     console.log('Analyzing page:', url)
 
-    return webContents
+    return tab.webContents
       .executeJavaScript(
         `
       // 在 getCurrentPageLoginInfo 方法的 executeJavaScript 部分添加通用用户信息提取
@@ -493,23 +487,16 @@ class Browser {
             
             // 遍历每个数据库
             for (const dbInfo of databases) {
-              let db = null
               try {
                 const dbName = dbInfo.name
                 const dbVersion = dbInfo.version
                 
-                // 打开数据库，添加超时机制
-                db = await Promise.race([
-                  new Promise((resolve, reject) => {
-                    const request = indexedDB.open(dbName, dbVersion)
-                    request.onsuccess = () => resolve(request.result)
-                    request.onerror = () => reject(new Error(\`Failed to open database: \${request.error?.message || 'Unknown error'}\`))
-                    request.onblocked = () => reject(new Error('Database open request was blocked'))
-                  }),
-                  new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Database open timeout')), 5000)
-                  )
-                ])
+                // 打开数据库
+                const db = await new Promise((resolve, reject) => {
+                  const request = indexedDB.open(dbName, dbVersion)
+                  request.onsuccess = () => resolve(request.result)
+                  request.onerror = () => reject(request.error)
+                })
                 
                 const dbData = {
                   name: dbName,
@@ -517,52 +504,29 @@ class Browser {
                   objectStores: []
                 }
                 
-                // 检查数据库是否仍然有效
-                if (!db || db.readyState === 'done') {
-                  throw new Error('Database connection is invalid')
-                }
-                
                 // 获取所有对象存储
                 const storeNames = Array.from(db.objectStoreNames)
                 
-                if (storeNames.length === 0) {
-                  dbData.objectStores = []
-                } else {
-                  // 创建事务来读取数据
-                  const transaction = db.transaction(storeNames, 'readonly')
-                  
-                  // 添加事务错误处理
-                  transaction.onerror = (event) => {
-                    console.warn(\`Transaction error for database \${dbName}:\`, event.target.error)
-                  }
-                  
-                  for (const storeName of storeNames) {
-                    try {
-                      const store = transaction.objectStore(storeName)
-                      
-                      // 获取存储中的所有数据，添加超时
-                      const allData = await Promise.race([
-                        new Promise((resolve, reject) => {
-                          const request = store.getAll()
-                          request.onsuccess = () => resolve(request.result)
-                          request.onerror = () => reject(new Error(\`Failed to get data: \${request.error?.message || 'Unknown error'}\`))
-                        }),
-                        new Promise((_, reject) => 
-                          setTimeout(() => reject(new Error('Data retrieval timeout')), 3000)
-                        )
-                      ])
-                      
-                      // 获取所有键，添加超时
-                      const allKeys = await Promise.race([
-                        new Promise((resolve, reject) => {
-                          const request = store.getAllKeys()
-                          request.onsuccess = () => resolve(request.result)
-                          request.onerror = () => reject(new Error(\`Failed to get keys: \${request.error?.message || 'Unknown error'}\`))
-                        }),
-                        new Promise((_, reject) => 
-                          setTimeout(() => reject(new Error('Keys retrieval timeout')), 3000)
-                        )
-                      ])
+                // 创建事务来读取数据
+                const transaction = db.transaction(storeNames, 'readonly')
+                
+                for (const storeName of storeNames) {
+                  try {
+                    const store = transaction.objectStore(storeName)
+                    
+                    // 获取存储中的所有数据
+                    const allData = await new Promise((resolve, reject) => {
+                      const request = store.getAll()
+                      request.onsuccess = () => resolve(request.result)
+                      request.onerror = () => reject(request.error)
+                    })
+                    
+                    // 获取所有键
+                    const allKeys = await new Promise((resolve, reject) => {
+                      const request = store.getAllKeys()
+                      request.onsuccess = () => resolve(request.result)
+                      request.onerror = () => reject(request.error)
+                    })
                     
                     dbData.objectStores.push({
                       name: storeName,
@@ -595,27 +559,17 @@ class Browser {
                       error: storeError.message
                     })
                   }
-                  }
                 }
                 
                 result.storage.indexedDB.databases.push(dbData)
+                db.close()
                 
               } catch (dbError) {
-                console.warn(\`Error processing database \${dbInfo.name}:\`, dbError)
                 result.storage.indexedDB.databases.push({
-                  name: dbInfo.name || 'Unknown',
-                  version: dbInfo.version || 'Unknown',
-                  error: dbError.message || 'Unknown database error'
+                  name: dbInfo.name,
+                  version: dbInfo.version,
+                  error: dbError.message
                 })
-              } finally {
-                // 确保数据库连接被正确关闭
-                if (db && typeof db.close === 'function') {
-                  try {
-                    db.close()
-                  } catch (closeError) {
-                    console.warn(\`Error closing database \${dbInfo.name}:\`, closeError)
-                  }
-                }
               }
             }
           } else {
@@ -826,34 +780,13 @@ class Browser {
     `,
       )
       .then((pageData) => {
-        // 在获取cookies前再次检查WebContents有效性
-        if (!webContents || webContents.isDestroyed()) {
+        return this.session.cookies.get({ url: url }).then((cookies) => {
           return {
             pageData: pageData,
-            cookies: [],
+            cookies: cookies,
             timestamp: new Date().toISOString(),
-            warning: 'WebContents was destroyed before cookies could be retrieved',
           }
-        }
-
-        return this.session.cookies
-          .get({ url: url })
-          .then((cookies) => {
-            return {
-              pageData: pageData,
-              cookies: cookies,
-              timestamp: new Date().toISOString(),
-            }
-          })
-          .catch((cookieError) => {
-            console.warn('Error getting cookies:', cookieError)
-            return {
-              pageData: pageData,
-              cookies: [],
-              timestamp: new Date().toISOString(),
-              cookieError: cookieError.message,
-            }
-          })
+        })
       })
   }
 

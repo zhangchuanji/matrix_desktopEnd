@@ -36,6 +36,8 @@ const makers = [
 // WiX maker - 生成MSI安装包（需要安装WiX Toolset）
 // 安装WiX Toolset: https://wixtoolset.org/releases/
 // 或使用命令: choco install wixtoolset
+// 暂时注释掉，避免WiX Toolset依赖错误
+/*
 if (process.platform === 'win32') {
   makers.push({
     name: '@electron-forge/maker-wix',
@@ -62,6 +64,7 @@ if (process.platform === 'win32') {
     },
   })
 }
+*/
 
 module.exports = {
   packagerConfig: {

@@ -1,6 +1,6 @@
 module.exports = {
   packagerConfig: {
-    name: 'AIGEO 增长引擎',
+    name: 'matrix-application',
     asar: true,
     extraResource: ['browser/ui'],
     icon: './assets/icon', // 会自动根据平台选择对应格式
@@ -27,8 +27,10 @@ module.exports = {
       config: {
         name: 'matrix-application',
         authors: 'Samuel Maddock',
-        description: 'Minimum Viable Browser shell built on Electron.',
+        description: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
         exe: 'matrix-application.exe',
+        title: 'AIGEO 增长引擎',
+        setupExe: 'AIGEO-增长引擎-Setup.exe',
       },
     },
   ],

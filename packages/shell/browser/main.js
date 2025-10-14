@@ -802,7 +802,7 @@ class Browser {
         titleBarStyle: 'hidden',
         titleBarOverlay: {
           height: 31,
-          color: '#f3f4f6',
+          color: '#2d3748',
           symbolColor: '#ffffff',
         },
         webPreferences: {

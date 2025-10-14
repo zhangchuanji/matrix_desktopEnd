@@ -19,12 +19,12 @@ const makers = [
     name: '@electron-forge/maker-squirrel',
     platforms: ['win32'],
     config: {
-      name: 'matrix-application', // 内部名称使用英文
+      name: 'AIGEO-GrowthEngine', // 内部名称，不能有中文和特殊字符
       authors: 'AIGEO Team',
-      description: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
-      exe: 'matrix-application.exe', // exe名称使用英文
+      description: 'AIGEO Growth Engine - AI-driven growth analysis tool',
+      exe: 'AIGEO-GrowthEngine.exe', // exe名称使用英文
       title: 'AIGEO 增长引擎', // 显示标题可以使用中文
-      setupExe: 'AIGEO-增长引擎-Setup.exe', // 安装包名称
+      // 移除 setupExe 配置，让 Squirrel 自动生成标准安装包名称
       setupIcon: './assets/icon.ico', // 安装包图标
       // loadingGif: './assets/install-spinner.gif', // 安装动画（已移除，文件不存在）
       noMsi: true, // 不生成MSI，只生成Squirrel安装包
@@ -68,7 +68,7 @@ if (process.platform === 'win32') {
 
 module.exports = {
   packagerConfig: {
-    name: 'matrix-application', // 内部名称使用英文
+    name: 'AIGEO-GrowthEngine', // 内部名称，与 Squirrel 配置保持一致
     productName: 'AIGEO 增长引擎', // 产品显示名称使用中文
     asar: true,
     extraResource: ['browser/ui'],

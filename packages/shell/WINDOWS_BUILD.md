@@ -11,7 +11,7 @@
 
 ### 1. Squirrel 安装包 (推荐，默认启用)
 
-- **文件名**: `AIGEO-增长引擎-Setup.exe`
+- **文件名**: `AIGEO-GrowthEngineSetup.exe` (标准 Squirrel 安装包)
 - **特点**:
   - 现代化安装体验
   - 支持自动更新
@@ -69,8 +69,8 @@ yarn make
 
 1. **Squirrel 安装包测试**:
 
-   - 双击 `AIGEO-增长引擎-Setup.exe`
-   - 应该显示安装界面
+   - 双击 `AIGEO-GrowthEngineSetup.exe`
+   - 应该显示安装界面（而不是直接启动应用）
    - 安装完成后在开始菜单找到应用
 
 2. **WiX MSI 安装包测试**:

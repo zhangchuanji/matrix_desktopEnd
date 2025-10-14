@@ -6,15 +6,15 @@
   <title>Shell Browser</title>
   <style>
     :root {
-      /* 蓝白色主题 - 匹配图片样式 */
-      --bg-color: #ffffff;
-      /* 白色背景 */
-      --text-color: #333333;
-      /* 深灰色文字 */
-      --tab-color: #f9fafb;
-      /* 浅蓝色标签栏 */
-      --toolbar-control-color: #4a90e2;
-      /* 蓝色按钮 */
+      /* 紫色主题 */
+      --bg-color: #7960f9;
+      /* 紫色背景 */
+      --text-color: #ffffff;
+      /* 白色文字 */
+      --tab-color: #f3f4f6;
+      /* 紫色标签栏 */
+      --toolbar-control-color: #ffffff;
+      /* 白色按钮 */
 
       /* electron-chrome-extensions colors */
       --browser-action-badge-outline: var(--tab-color);
@@ -49,7 +49,7 @@
     }
 
     .topbar {
-      background: #f3f4f6;
+      background: #7960f9;
     }
 
     /*----- TABS -----*/
@@ -103,10 +103,13 @@
       flex-wrap: nowrap;
       align-items: center;
       width: 12rem;
+      cursor: pointer;
     }
 
     .tab[data-active] {
-      background: var(--bg-color);
+      background: #ffffff;
+      color: #333;
+      cursor: pointer;
     }
 
     .tab .favicon[src] {
@@ -244,8 +247,8 @@
     .address-bar .input-container input {
       width: 100%;
       height: 100%;
-      background: var(--bg-color);
-      color: var(--text-color);
+      background: #ffffff;
+      color: #333;
       border: none;
       border-radius: .5rem;
       padding: 0 0.5rem 0 2.5rem;

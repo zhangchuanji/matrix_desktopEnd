@@ -26,7 +26,7 @@ const makers = [
       title: 'AIGEO 增长引擎', // 显示标题可以使用中文
       setupExe: 'AIGEO-增长引擎-Setup.exe', // 安装包名称
       setupIcon: './assets/icon.ico', // 安装包图标
-      loadingGif: './assets/install-spinner.gif', // 安装动画（可选）
+      // loadingGif: './assets/install-spinner.gif', // 安装动画（已移除，文件不存在）
       noMsi: true, // 不生成MSI，只生成Squirrel安装包
       arch: ['x64'],
     },

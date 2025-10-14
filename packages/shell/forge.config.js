@@ -19,11 +19,11 @@ const makers = [
     name: '@electron-forge/maker-squirrel',
     platforms: ['win32'],
     config: {
-      name: 'AIGEO 增长引擎',
+      name: 'matrix-application', // 内部名称使用英文
       authors: 'Samuel Maddock',
       description: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
-      exe: 'AIGEO 增长引擎.exe',
-      title: 'AIGEO 增长引擎',
+      exe: 'matrix-application.exe', // exe名称使用英文
+      title: 'AIGEO 增长引擎', // 显示标题可以使用中文
       setupExe: 'AIGEO-增长引擎-Setup.exe',
       arch: ['x64'],
     },
@@ -36,14 +36,15 @@ if (process.platform === 'win32') {
     name: '@electron-forge/maker-wix',
     platforms: ['win32'],
     config: {
-      name: 'AIGEO 增长引擎',
-      description: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
+      name: 'AIGEO.GrowthEngine', // 包ID必须使用英文和点号
+      description: 'AIGEO Growth Engine - AI-driven growth analysis tool',
       manufacturer: 'AIGEO Team',
       version: '1.0.0',
       arch: 'x64',
       programFilesFolderName: 'AIGEO',
       shortName: 'AIGEO',
-      exe: 'AIGEO 增长引擎',
+      exe: 'matrix-application', // exe名称使用英文
+      productName: 'AIGEO 增长引擎', // 产品显示名称可以使用中文
       ui: {
         chooseDirectory: true,
       },
@@ -53,7 +54,8 @@ if (process.platform === 'win32') {
 
 module.exports = {
   packagerConfig: {
-    name: 'AIGEO 增长引擎',
+    name: 'matrix-application', // 内部名称使用英文
+    productName: 'AIGEO 增长引擎', // 产品显示名称使用中文
     asar: true,
     extraResource: ['browser/ui'],
     icon: './assets/icon', // 会自动根据平台选择对应格式

@@ -1,7 +1,7 @@
 const makers = [
   {
     name: '@electron-forge/maker-zip',
-    platforms: ['darwin', 'win32'],
+    platforms: ['darwin', 'win64'],
     config: {
       arch: ['x64', 'arm64'],
     },
@@ -17,7 +17,7 @@ const makers = [
   },
   {
     name: '@electron-forge/maker-squirrel',
-    platforms: ['win32'],
+    platforms: ['win64'],
     config: {
       name: 'matrix-application', // 内部名称使用英文
       authors: 'Samuel Maddock',
@@ -30,7 +30,9 @@ const makers = [
   },
 ]
 
-// 只在Windows环境下添加WiX maker
+// WiX maker需要安装WiX Toolset，暂时注释掉
+// 如需MSI安装包，请先安装WiX Toolset: https://wixtoolset.org/releases/
+/*
 if (process.platform === 'win32') {
   makers.push({
     name: '@electron-forge/maker-wix',
@@ -49,8 +51,9 @@ if (process.platform === 'win32') {
         chooseDirectory: true,
       },
     },
-  })
+  });
 }
+*/
 
 module.exports = {
   packagerConfig: {

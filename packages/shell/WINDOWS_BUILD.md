@@ -1,17 +1,25 @@
 # Windows 安装包构建说明
 
+## ⚠️ 重要提示
+
+**Windows 安装包只能在 Windows 系统上生成！**
+
+- Squirrel 和 WiX 都依赖 Windows 特定的工具
+- 在 macOS 或 Linux 上运行 `yarn make` 不会生成 Windows 安装包
+
 ## 构建目标
 
 - ✅ 生成真正的 Windows 安装包（非便携版）
 - ✅ 移除 Windows ZIP 便携版
 - ✅ 支持 Squirrel 安装包
 - ⚠️ WiX MSI 需要额外安装工具
+- ⚠️ 必须在 Windows 系统上构建
 
 ## 安装包类型
 
 ### 1. Squirrel 安装包 (推荐，默认启用)
 
-- **文件名**: `AIGEO-GrowthEngineSetup.exe` (标准 Squirrel 安装包)
+- **文件名**: `AIGEO-GrowthEngine-Setup.exe` (标准 Squirrel 安装包)
 - **特点**:
   - 现代化安装体验
   - 支持自动更新
@@ -65,11 +73,32 @@ yarn make
 - `out/make/squirrel.windows/x64/` - Squirrel 安装包
 - `out/make/wix/x64/` - WiX MSI 安装包（如果启用）
 
+## 跨平台构建解决方案
+
+### 方案 1：在 Windows 系统上构建
+
+1. 将项目代码复制到 Windows 系统
+2. 在 Windows 上安装 Node.js 和 Yarn
+3. 运行 `yarn install` 安装依赖
+4. 运行 `yarn make` 生成 Windows 安装包
+
+### 方案 2：使用虚拟机
+
+1. 在 macOS 上安装 Windows 虚拟机（如 Parallels Desktop、VMware Fusion）
+2. 在虚拟机中安装开发环境
+3. 在虚拟机中构建 Windows 安装包
+
+### 方案 3：使用 CI/CD（推荐）
+
+1. 使用 GitHub Actions 或其他 CI/CD 服务
+2. 配置 Windows 构建环境
+3. 自动化构建和发布流程
+
 ## 验证安装包
 
 1. **Squirrel 安装包测试**:
 
-   - 双击 `AIGEO-GrowthEngineSetup.exe`
+   - 双击 `AIGEO-GrowthEngine-Setup.exe`
    - 应该显示安装界面（而不是直接启动应用）
    - 安装完成后在开始菜单找到应用
 

@@ -24,10 +24,10 @@ const makers = [
       description: 'AIGEO Growth Engine - AI-driven growth analysis tool',
       exe: 'AIGEO-GrowthEngine.exe', // exe名称使用英文
       title: 'AIGEO 增长引擎', // 显示标题可以使用中文
-      // 移除 setupExe 配置，让 Squirrel 自动生成标准安装包名称
+      setupExe: 'AIGEO-GrowthEngine-Setup.exe', // 明确指定安装程序名称
       setupIcon: './assets/icon.ico', // 安装包图标
       // loadingGif: './assets/install-spinner.gif', // 安装动画（已移除，文件不存在）
-      noMsi: true, // 不生成MSI，只生成Squirrel安装包
+      // 移除 noMsi 设置，确保生成标准的安装程序
       arch: ['x64'],
     },
   },

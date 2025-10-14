@@ -1,7 +1,7 @@
 const makers = [
   {
     name: '@electron-forge/maker-zip',
-    platforms: ['darwin', 'win32'],
+    platforms: ['darwin'], // 只在macOS上生成ZIP便携版
     config: {
       arch: ['x64', 'arm64'],
     },
@@ -20,19 +20,22 @@ const makers = [
     platforms: ['win32'],
     config: {
       name: 'matrix-application', // 内部名称使用英文
-      authors: 'Samuel Maddock',
+      authors: 'AIGEO Team',
       description: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
       exe: 'matrix-application.exe', // exe名称使用英文
       title: 'AIGEO 增长引擎', // 显示标题可以使用中文
-      setupExe: 'AIGEO-增长引擎-Setup.exe',
+      setupExe: 'AIGEO-增长引擎-Setup.exe', // 安装包名称
+      setupIcon: './assets/icon.ico', // 安装包图标
+      loadingGif: './assets/install-spinner.gif', // 安装动画（可选）
+      noMsi: true, // 不生成MSI，只生成Squirrel安装包
       arch: ['x64'],
     },
   },
 ]
 
-// WiX maker需要安装WiX Toolset，暂时注释掉
-// 如需MSI安装包，请先安装WiX Toolset: https://wixtoolset.org/releases/
-/*
+// WiX maker - 生成MSI安装包（需要安装WiX Toolset）
+// 安装WiX Toolset: https://wixtoolset.org/releases/
+// 或使用命令: choco install wixtoolset
 if (process.platform === 'win32') {
   makers.push({
     name: '@electron-forge/maker-wix',
@@ -47,13 +50,18 @@ if (process.platform === 'win32') {
       shortName: 'AIGEO',
       exe: 'matrix-application', // exe名称使用英文
       productName: 'AIGEO 增长引擎', // 产品显示名称可以使用中文
+      upgradeCode: '12345678-1234-1234-1234-123456789012', // 固定的升级代码
       ui: {
         chooseDirectory: true,
+        enabled: true,
+      },
+      features: {
+        autoUpdate: true,
+        autoLaunch: true,
       },
     },
-  });
+  })
 }
-*/
 
 module.exports = {
   packagerConfig: {

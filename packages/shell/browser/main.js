@@ -294,12 +294,45 @@ class Browser {
   initSession() {
     this.session = session.defaultSession
 
-    // Remove Electron and App details to closer emulate Chrome's UA
-    const userAgent = this.session
-      .getUserAgent()
-      .replace(/\sElectron\/\S+/, '')
-      .replace(new RegExp(`\\s${app.getName()}/\\S+`), '')
-    this.session.setUserAgent(userAgent)
+    // Set a modern Chrome User-Agent to avoid "parameter exception" errors on sites like Zhihu
+    // 设置现代 Chrome User-Agent 以避免知乎等网站的"参数异常"错误
+    const modernChromeUA =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    this.session.setUserAgent(modernChromeUA)
+
+    // Add additional headers to better simulate real browser behavior
+    // 添加额外的请求头以更好地模拟真实浏览器行为
+    this.session.webRequest.onBeforeSendHeaders((details, callback) => {
+      const headers = details.requestHeaders
+
+      // Add common browser headers if missing
+      if (!headers['Accept-Language']) {
+        headers['Accept-Language'] = 'zh-CN,zh;q=0.9,en;q=0.8'
+      }
+
+      if (!headers['Accept-Encoding']) {
+        headers['Accept-Encoding'] = 'gzip, deflate, br'
+      }
+
+      if (!headers['Accept']) {
+        headers['Accept'] =
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'
+      }
+
+      // For Zhihu and other sensitive sites, add sec-ch-ua headers
+      if (details.url.includes('zhihu.com')) {
+        headers['sec-ch-ua'] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
+        headers['sec-ch-ua-mobile'] = '?0'
+        headers['sec-ch-ua-platform'] = '"Windows"'
+        headers['Sec-Fetch-Dest'] = 'document'
+        headers['Sec-Fetch-Mode'] = 'navigate'
+        headers['Sec-Fetch-Site'] = 'none'
+        headers['Sec-Fetch-User'] = '?1'
+        headers['Upgrade-Insecure-Requests'] = '1'
+      }
+
+      callback({ requestHeaders: headers })
+    })
 
     // Setup login monitoring
     this.setupLoginMonitoring()

@@ -270,16 +270,36 @@ export class TabsAPI {
 
     const props = updateProperties
 
-    const url = props.url ? validateExtensionUrl(props.url, event.extension) : undefined
-    if (url) await tab.loadURL(url)
+    try {
+      const url = props.url ? validateExtensionUrl(props.url, event.extension) : undefined
+      if (url) {
+        // 添加超时机制，防止loadURL操作卡死
+        await Promise.race([
+          tab.loadURL(url),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('loadURL timeout')), 10000)),
+        ])
+      }
 
-    if (typeof props.muted === 'boolean') tab.setAudioMuted(props.muted)
+      if (typeof props.muted === 'boolean') tab.setAudioMuted(props.muted)
 
-    if (props.active) this.onActivated(tabId)
+      if (props.active) this.onActivated(tabId)
 
-    this.onUpdated(tabId)
+      this.onUpdated(tabId)
 
-    return this.createTabDetails(tab)
+      return this.createTabDetails(tab)
+    } catch (error) {
+      d(`Error updating tab ${tabId}:`, error)
+      // 即使loadURL失败，也要继续处理其他属性
+      try {
+        if (typeof props.muted === 'boolean') tab.setAudioMuted(props.muted)
+        if (props.active) this.onActivated(tabId)
+        this.onUpdated(tabId)
+        return this.createTabDetails(tab)
+      } catch (fallbackError) {
+        d(`Fallback error for tab ${tabId}:`, fallbackError)
+        return null
+      }
+    }
   }
 
   private remove(event: ExtensionEvent, id: number | number[]) {

@@ -397,11 +397,23 @@ class Browser {
     const url = tab.webContents.getURL()
     console.log('Analyzing page:', url)
 
-    return tab.webContents
-      .executeJavaScript(
-        `
+    // 添加超时机制的executeJavaScript
+    const executeWithTimeout = (script, timeoutMs = 10000) => {
+      return Promise.race([
+        tab.webContents.executeJavaScript(script),
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Script execution timeout after ${timeoutMs}ms`))
+          }, timeoutMs)
+        }),
+      ])
+    }
+
+    return executeWithTimeout(
+      `
       // 在 getCurrentPageLoginInfo 方法的 executeJavaScript 部分添加通用用户信息提取
       (async () => {
+        try {
         const result = {
           url: window.location.href,
           title: document.title,
@@ -475,103 +487,41 @@ class Browser {
           result.storage.sessionStorage = { error: 'Failed to access sessionStorage: ' + error.message }
         }
         
-        // 获取 IndexedDB 数据（完整实现）
+        // 获取 IndexedDB 数据（简化版本，避免复杂异步操作）
         try {
           if (window.indexedDB) {
-            // 获取所有数据库
-            const databases = await indexedDB.databases()
-            result.storage.indexedDB = {
-              available: true,
-              databases: []
-            }
-            
-            // 遍历每个数据库
-            for (const dbInfo of databases) {
+            // 使用超时机制避免卡死
+            const indexedDBPromise = new Promise(async (resolve, reject) => {
               try {
-                const dbName = dbInfo.name
-                const dbVersion = dbInfo.version
-                
-                // 打开数据库
-                const db = await new Promise((resolve, reject) => {
-                  const request = indexedDB.open(dbName, dbVersion)
-                  request.onsuccess = () => resolve(request.result)
-                  request.onerror = () => reject(request.error)
-                })
-                
-                const dbData = {
-                  name: dbName,
-                  version: dbVersion,
-                  objectStores: []
+                const databases = await indexedDB.databases()
+                const result = {
+                  available: true,
+                  databaseCount: databases.length,
+                  databaseNames: databases.map(db => db.name),
+                  note: 'Simplified IndexedDB info to prevent crashes'
                 }
-                
-                // 获取所有对象存储
-                const storeNames = Array.from(db.objectStoreNames)
-                
-                // 创建事务来读取数据
-                const transaction = db.transaction(storeNames, 'readonly')
-                
-                for (const storeName of storeNames) {
-                  try {
-                    const store = transaction.objectStore(storeName)
-                    
-                    // 获取存储中的所有数据
-                    const allData = await new Promise((resolve, reject) => {
-                      const request = store.getAll()
-                      request.onsuccess = () => resolve(request.result)
-                      request.onerror = () => reject(request.error)
-                    })
-                    
-                    // 获取所有键
-                    const allKeys = await new Promise((resolve, reject) => {
-                      const request = store.getAllKeys()
-                      request.onsuccess = () => resolve(request.result)
-                      request.onerror = () => reject(request.error)
-                    })
-                    
-                    dbData.objectStores.push({
-                      name: storeName,
-                      keyPath: store.keyPath,
-                      autoIncrement: store.autoIncrement,
-                      indexNames: Array.from(store.indexNames),
-                      dataCount: allData.length,
-                      keys: allKeys.slice(0, 10), // 只保存前10个键
-                      sampleData: allData.slice(0, 3).map(item => {
-                        // 注释掉敏感数据过滤
-                        // if (typeof item === 'object' && item !== null) {
-                        //   const filtered = {}
-                        //   for (const [key, value] of Object.entries(item)) {
-                        //     const sensitiveKeywords = ['password', 'token', 'auth', 'secret', 'key', 'session']
-                        //     const isSensitive = sensitiveKeywords.some(keyword => 
-                        //       key.toLowerCase().includes(keyword)
-                        //     )
-                        //     filtered[key] = isSensitive ? '[Sensitive Data]' : value
-                        //   }
-                        //   return filtered
-                        // }
-                        
-                        // 直接返回原始数据
-                        return item
-                      })
-                    })
-                  } catch (storeError) {
-                    dbData.objectStores.push({
-                      name: storeName,
-                      error: storeError.message
-                    })
-                  }
-                }
-                
-                result.storage.indexedDB.databases.push(dbData)
-                db.close()
-                
-              } catch (dbError) {
-                result.storage.indexedDB.databases.push({
-                  name: dbInfo.name,
-                  version: dbInfo.version,
-                  error: dbError.message
+                resolve(result)
+              } catch (error) {
+                resolve({
+                  available: true,
+                  error: error.message,
+                  note: 'Failed to access IndexedDB details'
                 })
               }
-            }
+            })
+            
+            // 设置3秒超时
+            const timeoutPromise = new Promise((resolve) => {
+              setTimeout(() => {
+                resolve({
+                  available: true,
+                  error: 'IndexedDB access timeout',
+                  note: 'Operation timed out after 3 seconds'
+                })
+              }, 3000)
+            })
+            
+            result.storage.indexedDB = await Promise.race([indexedDBPromise, timeoutPromise])
           } else {
             result.storage.indexedDB = {
               available: false,
@@ -581,7 +531,8 @@ class Browser {
         } catch (error) {
           result.storage.indexedDB = {
             available: false,
-            error: error.message
+            error: error.message,
+            note: 'IndexedDB access failed'
           }
         }
         
@@ -776,18 +727,32 @@ class Browser {
         }
         
         return result
+        } catch (error) {
+          // 如果脚本执行出错，返回基本信息
+          return {
+            url: window.location.href,
+            title: document.title,
+            forms: [],
+            inputs: [],
+            userInfo: { error: error.message },
+            storage: {
+              localStorage: { error: 'Failed to access due to script error' },
+              sessionStorage: { error: 'Failed to access due to script error' },
+              indexedDB: { available: false, error: 'Failed to access due to script error' }
+            }
+          }
+        }
       })()
     `,
-      )
-      .then((pageData) => {
-        return this.session.cookies.get({ url: url }).then((cookies) => {
-          return {
-            pageData: pageData,
-            cookies: cookies,
-            timestamp: new Date().toISOString(),
-          }
-        })
+    ).then((pageData) => {
+      return this.session.cookies.get({ url: url }).then((cookies) => {
+        return {
+          pageData: pageData,
+          cookies: cookies,
+          timestamp: new Date().toISOString(),
+        }
       })
+    })
   }
 
   createWindow(options) {
@@ -898,8 +863,15 @@ class Browser {
       console.log('  - features:', details.features)
 
       // 添加文件日志以确保能看到
-      const logMessage = `${new Date().toISOString()} - setWindowOpenHandler triggered: ${details.url}\n`
-      fs.appendFileSync('/tmp/electron-debug.log', logMessage)
+      try {
+        const os = require('os')
+        const path = require('path')
+        const logPath = path.join(os.tmpdir(), 'electron-debug.log')
+        const logMessage = `${new Date().toISOString()} - setWindowOpenHandler triggered: ${details.url}\n`
+        fs.appendFileSync(logPath, logMessage)
+      } catch (error) {
+        console.log('调试日志写入失败:', error.message)
+      }
 
       switch (details.disposition) {
         case 'foreground-tab':
@@ -1001,23 +973,30 @@ class Browser {
     // 使用 setTimeout 而不是 setImmediate，给更多时间让窗口稳定
     setTimeout(async () => {
       try {
+        console.log('开始数据传输到新标签页')
+
         // 多重检查
         if (!sourceWebContents || sourceWebContents.isDestroyed()) {
+          console.log('源WebContents无效或已销毁')
           return
         }
 
         if (!targetTab || !targetTab.webContents || targetTab.webContents.isDestroyed()) {
+          console.log('目标标签页无效或已销毁')
           return
         }
 
-        // 等待目标页面完全加载
+        // 等待目标页面完全加载，但减少超时时间
         if (targetTab.webContents.isLoading()) {
+          console.log('等待目标页面加载完成')
           await new Promise((resolve) => {
             const timeout = setTimeout(() => {
+              console.log('等待页面加载超时')
               resolve()
-            }, 5000) // 5秒超时
+            }, 3000) // 减少到3秒超时
 
             targetTab.webContents.once('did-finish-load', () => {
+              console.log('目标页面加载完成')
               clearTimeout(timeout)
               resolve()
             })
@@ -1026,38 +1005,61 @@ class Browser {
 
         // 再次检查状态
         if (sourceWebContents.isDestroyed() || targetTab.webContents.isDestroyed()) {
+          console.log('WebContents在等待过程中被销毁')
           return
         }
 
         const sourceUrl = sourceWebContents.getURL()
+        console.log('开始获取源页面数据:', sourceUrl)
 
-        // 并行获取数据，但有超时保护
-        const dataPromises = [
-          Promise.race([
+        // 简化数据获取，减少并行操作
+        let localStorageData = {}
+        let sessionStorageData = {}
+        let cookies = []
+
+        try {
+          // 串行获取数据，减少并发压力
+          localStorageData = await Promise.race([
             this.getLocalStorageData(sourceWebContents),
-            new Promise((resolve) => setTimeout(() => resolve({}), 3000)),
-          ]),
-          Promise.race([
-            this.getSessionStorageData(sourceWebContents),
-            new Promise((resolve) => setTimeout(() => resolve({}), 3000)),
-          ]),
-          Promise.race([
-            this.session.cookies.get({ url: sourceUrl }),
-            new Promise((resolve) => setTimeout(() => resolve([]), 3000)),
-          ]),
-        ]
+            new Promise((resolve) => setTimeout(() => resolve({}), 2000)),
+          ])
 
-        const [localStorageData, sessionStorageData, cookies] = await Promise.all(dataPromises)
+          if (sourceWebContents.isDestroyed() || targetTab.webContents.isDestroyed()) {
+            return
+          }
+
+          sessionStorageData = await Promise.race([
+            this.getSessionStorageData(sourceWebContents),
+            new Promise((resolve) => setTimeout(() => resolve({}), 2000)),
+          ])
+
+          if (sourceWebContents.isDestroyed() || targetTab.webContents.isDestroyed()) {
+            return
+          }
+
+          cookies = await Promise.race([
+            this.session.cookies.get({ url: sourceUrl }),
+            new Promise((resolve) => setTimeout(() => resolve([]), 2000)),
+          ])
+        } catch (dataError) {
+          console.log('获取数据时出错:', dataError.message)
+          // 继续使用默认空值
+        }
 
         // 最后一次检查
         if (targetTab.webContents.isDestroyed()) {
+          console.log('目标标签页在数据获取过程中被销毁')
           return
         }
 
+        console.log('开始设置数据到目标标签页')
         // 设置数据
         await this.setDataToTab(targetTab, localStorageData, sessionStorageData, cookies, targetUrl)
-      } catch (error) {}
-    }, 100) // 100ms 延迟
+        console.log('数据传输完成')
+      } catch (error) {
+        console.log('数据传输过程中出错:', error.message)
+      }
+    }, 200) // 增加延迟到200ms
   }
 
   // 辅助方法
@@ -1105,57 +1107,125 @@ class Browser {
 
   async setDataToTab(tab, localStorageData, sessionStorageData, cookies, targetUrl) {
     if (!tab || !tab.webContents || tab.webContents.isDestroyed()) {
+      console.log('setDataToTab: 标签页无效或已销毁')
       return
     }
 
     try {
       // 设置 localStorage
       if (Object.keys(localStorageData).length > 0) {
-        await tab.webContents.executeJavaScript(`
-          (() => {
-            const data = ${JSON.stringify(localStorageData)}
-            Object.keys(data).forEach(key => {
-              localStorage.setItem(key, data[key])
-            })
-          })()
-        `)
+        console.log('设置localStorage数据')
+        try {
+          await Promise.race([
+            tab.webContents.executeJavaScript(`
+              (() => {
+                try {
+                  const data = ${JSON.stringify(localStorageData)}
+                  Object.keys(data).forEach(key => {
+                    localStorage.setItem(key, data[key])
+                  })
+                  return true
+                } catch (e) {
+                  return false
+                }
+              })()
+            `),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('localStorage timeout')), 3000),
+            ),
+          ])
+        } catch (localStorageError) {
+          console.log('设置localStorage失败:', localStorageError.message)
+        }
+      }
+
+      // 检查标签页是否仍然有效
+      if (tab.webContents.isDestroyed()) {
+        console.log('标签页在设置localStorage后被销毁')
+        return
       }
 
       // 设置 sessionStorage
       if (Object.keys(sessionStorageData).length > 0) {
-        await tab.webContents.executeJavaScript(`
-          (() => {
-            const data = ${JSON.stringify(sessionStorageData)}
-            Object.keys(data).forEach(key => {
-              sessionStorage.setItem(key, data[key])
-            })
-          })()
-        `)
+        console.log('设置sessionStorage数据')
+        try {
+          await Promise.race([
+            tab.webContents.executeJavaScript(`
+              (() => {
+                try {
+                  const data = ${JSON.stringify(sessionStorageData)}
+                  Object.keys(data).forEach(key => {
+                    sessionStorage.setItem(key, data[key])
+                  })
+                  return true
+                } catch (e) {
+                  return false
+                }
+              })()
+            `),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('sessionStorage timeout')), 3000),
+            ),
+          ])
+        } catch (sessionStorageError) {
+          console.log('设置sessionStorage失败:', sessionStorageError.message)
+        }
+      }
+
+      // 检查标签页是否仍然有效
+      if (tab.webContents.isDestroyed()) {
+        console.log('标签页在设置sessionStorage后被销毁')
+        return
       }
 
       // 设置 cookies
       if (cookies.length > 0) {
-        const newUrl = new URL(targetUrl)
-        for (const cookie of cookies) {
-          const cookieDomain = cookie.domain.startsWith('.')
-            ? cookie.domain.substring(1)
-            : cookie.domain
+        console.log('设置cookies数据')
+        try {
+          const newUrl = new URL(targetUrl)
+          for (const cookie of cookies) {
+            // 检查标签页是否仍然有效
+            if (tab.webContents.isDestroyed()) {
+              console.log('标签页在设置cookies过程中被销毁')
+              return
+            }
 
-          if (newUrl.hostname.endsWith(cookieDomain) || newUrl.hostname === cookieDomain) {
-            await this.session.cookies.set({
-              url: targetUrl,
-              name: cookie.name,
-              value: cookie.value,
-              domain: cookie.domain,
-              path: cookie.path,
-              secure: cookie.secure,
-              httpOnly: cookie.httpOnly,
-              expirationDate: cookie.expirationDate,
-            })
+            const cookieDomain = cookie.domain.startsWith('.')
+              ? cookie.domain.substring(1)
+              : cookie.domain
+
+            if (newUrl.hostname.endsWith(cookieDomain) || newUrl.hostname === cookieDomain) {
+              try {
+                await Promise.race([
+                  this.session.cookies.set({
+                    url: targetUrl,
+                    name: cookie.name,
+                    value: cookie.value,
+                    domain: cookie.domain,
+                    path: cookie.path,
+                    secure: cookie.secure,
+                    httpOnly: cookie.httpOnly,
+                    expirationDate: cookie.expirationDate,
+                  }),
+                  new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('cookie set timeout')), 2000),
+                  ),
+                ])
+              } catch (cookieError) {
+                console.log('设置单个cookie失败:', cookieError.message)
+                // 继续设置其他cookies
+              }
+            }
           }
+        } catch (cookiesError) {
+          console.log('设置cookies失败:', cookiesError.message)
         }
       }
-    } catch (error) {}
+
+      console.log('setDataToTab完成')
+    } catch (error) {
+      console.log('setDataToTab出错:', error.message)
+    }
   }
 
   // 添加广播方法 (增强版本)
@@ -1261,10 +1331,22 @@ class Browser {
     // Handle login info capture requests
     ipcMain.handle('capture-login-info', async (event) => {
       try {
+        console.log('🔄 开始捕获登录信息...')
+
         const loginInfo = await this.getCurrentPageLoginInfo()
+        if (!loginInfo) {
+          console.error('❌ 获取登录信息失败')
+          return {
+            success: false,
+            error: '无法获取当前页面的登录信息',
+          }
+        }
+
+        console.log('✅ 登录信息获取成功:', loginInfo.pageData?.url)
 
         // 保存到文件
         const saveResult = this.saveAccountToFile(loginInfo)
+        console.log('💾 保存结果:', saveResult.success ? '成功' : '失败')
 
         // 广播到所有窗口的所有标签页
         if (saveResult.success) {
@@ -1294,6 +1376,7 @@ class Browser {
           // 保存成功后关闭当前标签页
           setTimeout(() => {
             try {
+              console.log('🔄 准备关闭当前标签页...')
               const focusedWindow = this.getFocusedWindow()
               if (focusedWindow) {
                 const activeTab = focusedWindow.getFocusedTab()
@@ -1301,18 +1384,26 @@ class Browser {
                   // 检查是否是最后一个标签页
                   if (focusedWindow.tabs.tabList.length > 1) {
                     // 不是最后一个标签页，直接关闭
+                    console.log('📝 关闭当前标签页（非最后一个）')
                     activeTab.webContents.close()
                   } else {
                     // 是最后一个标签页，创建新的空白页后再关闭当前页
+                    console.log('📝 创建新标签页并关闭当前标签页（最后一个）')
                     const newTab = focusedWindow.tabs.create()
                     newTab.loadURL('about:blank')
                     setTimeout(() => {
                       activeTab.webContents.close()
                     }, 100)
                   }
+                } else {
+                  console.log('⚠️ 没有找到活动标签页')
                 }
+              } else {
+                console.log('⚠️ 没有找到焦点窗口')
               }
-            } catch (closeError) {}
+            } catch (closeError) {
+              console.error('❌ 关闭标签页时出错:', closeError.message)
+            }
           }, 500) // 延迟500ms确保广播完成
         } else {
         }

@@ -1,7 +1,7 @@
 const makers = [
   {
     name: '@electron-forge/maker-zip',
-    platforms: ['darwin'], // 只在macOS上生成ZIP便携版
+    platforms: ['darwin', 'win32'],
     config: {
       arch: ['x64', 'arm64'],
     },
@@ -19,44 +19,49 @@ const makers = [
     name: '@electron-forge/maker-squirrel',
     platforms: ['win32'],
     config: {
-      name: 'AIGEO-GrowthEngine', // 内部名称，不能有中文和特殊字符
+      name: 'matrix-application',
       authors: 'AIGEO Team',
-      description: 'AIGEO Growth Engine - AI-driven growth analysis tool',
-      exe: 'AIGEO-GrowthEngine.exe', // exe名称使用英文
-      title: 'AIGEO 增长引擎', // 显示标题可以使用中文
-      setupExe: 'AIGEO-GrowthEngine-Setup.exe', // 明确指定安装程序名称
-      setupIcon: './assets/icon.ico', // 安装包图标
-      // loadingGif: './assets/install-spinner.gif', // 安装动画（已移除，文件不存在）
-      // 移除 noMsi 设置，确保生成标准的安装程序
-      arch: ['x64'],
+      description: 'AIGEO Growth Engine',
+      setupExe: 'AIGEO-Setup.exe',
+      setupIcon: './assets/icon.ico',
+      noMsi: true,
+      remoteReleases: false,
+      skipUpdateIcon: true,
     },
   },
 ]
 
-// WiX maker - 生成MSI安装包（需要安装WiX Toolset）
-// 安装WiX Toolset: https://wixtoolset.org/releases/
-// 或使用命令: choco install wixtoolset
-// 启用 WiX MSI 安装包，提供标准的 Windows 安装体验
-makers.push({
-  name: '@electron-forge/maker-wix',
-  platforms: ['win32'], // 只在 Windows 平台上实际运行
-  config: {
-    name: 'AIGEO-GrowthEngine',
-    description: 'AI驱动的增长分析工具',
-    manufacturer: 'AIGEO Team',
-    version: '1.0.0',
-    arch: ['x64'],
-    programFilesFolderName: 'AIGEO',
-    shortcutFolderName: 'AIGEO 增长引擎',
-    ui: {
-      chooseDirectory: true,
+// WiX maker - 生成标准的 MSI 安装包
+if (process.platform === 'win32') {
+  makers.push({
+    name: '@electron-forge/maker-wix',
+    platforms: ['win32'],
+    config: {
+      name: 'AIGEO.GrowthEngine',
+      description: 'AIGEO Growth Engine - AI-driven growth analysis tool',
+      manufacturer: 'AIGEO Team',
+      version: '1.0.0',
+      arch: 'x64',
+      programFilesFolderName: 'AIGEO',
+      shortName: 'AIGEO',
+      exe: 'matrix-application',
+      productName: 'AIGEO Growth Engine', // 使用英文避免编码问题
+      icon: './assets/icon.ico',
+      ui: {
+        chooseDirectory: true,
+        enabled: true,
+      },
+      features: {
+        autoUpdate: false,
+        autoLaunch: true,
+      },
     },
-  },
-})
+  })
+}
 
 module.exports = {
   packagerConfig: {
-    name: 'AIGEO-GrowthEngine', // 内部名称，与 Squirrel 配置保持一致
+    name: 'matrix-application', // 内部名称使用英文
     productName: 'AIGEO 增长引擎', // 产品显示名称使用中文
     asar: true,
     extraResource: ['browser/ui'],
@@ -64,6 +69,16 @@ module.exports = {
     // 添加这行来支持跨平台打包
     platform: ['darwin', 'win32'],
     arch: ['x64', 'arm64'], // 支持 x64 和 arm64 架构
+    // Windows 特定配置
+    win32metadata: {
+      CompanyName: 'AIGEO Team',
+      FileDescription: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
+      ProductName: 'AIGEO 增长引擎',
+      InternalName: 'matrix-application',
+      OriginalFilename: 'matrix-application.exe',
+    },
+    // 让 webpack 插件自动处理 ignore 配置
+    // ignore: 配置已移除，让 Electron Forge 自动处理
   },
   makers,
   plugins: [

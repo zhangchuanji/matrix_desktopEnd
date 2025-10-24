@@ -15,6 +15,7 @@ class WebUI {
     'zhihu.com',
     'bilibili.com',
     'kuaishou.com',
+    '360kuai.com',
 
     // 视频平台
     'youtube.com',

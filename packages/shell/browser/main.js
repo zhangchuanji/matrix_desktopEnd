@@ -320,7 +320,23 @@ class Browser {
     // Monitor cookie changes
     this.session.cookies.on('changed', (event, cookie, cause, removed) => {
       if (!removed) {
-        const loginKeywords = ['session', 'auth', 'token', 'login', 'user', 'jwt', 'access']
+        const loginKeywords = [
+          'session',
+          'auth',
+          'token',
+          'login',
+          'user',
+          'jwt',
+          'access',
+          // Baidu/百家号常见关键 Cookie 名称
+          'bduss',
+          'bduss_bfess',
+          'baiduid',
+          'stoken',
+          'ptoken',
+          'passid',
+          'mawebcuid',
+        ]
         const isLoginCookie = loginKeywords.some((keyword) =>
           cookie.name.toLowerCase().includes(keyword),
         )
@@ -381,6 +397,66 @@ class Browser {
 
       callback({})
     })
+  }
+
+  /**
+   * 聚合获取与百家号相关域的完整 Cookie 集合。
+   * 针对 baidu 生态的多域登录（如 passport.baidu.com、wappass.baidu.com 等），
+   * 合并去重后返回完整集合，避免只取当前 URL 导致不完整。
+   * @param {string} activeUrl
+   * @returns {Promise<Electron.Cookie[]>}
+   */
+  async getBaiduRelatedCookies(activeUrl) {
+    try {
+      const urlObj = new URL(activeUrl)
+      const hosts = [
+        'https://baijiahao.baidu.com/',
+        'https://www.baidu.com/',
+        'https://m.baidu.com/',
+        'https://passport.baidu.com/',
+        'https://wappass.baidu.com/',
+        'https://ma.baidu.com/',
+        'https://mbd.baidu.com/',
+        'https://hm.baidu.com/',
+      ]
+
+      // 额外：按域过滤一次，覆盖 .baidu.com 下的其他子域
+      const domainFilters = ['baidu.com', '.baidu.com', 'baijiahao.baidu.com']
+
+      const results = []
+      for (const host of hosts) {
+        try {
+          const cs = await this.session.cookies.get({ url: host })
+          results.push(...cs)
+        } catch {}
+      }
+
+      for (const dom of domainFilters) {
+        try {
+          const cs = await this.session.cookies.get({ domain: dom })
+          results.push(...cs)
+        } catch {}
+      }
+
+      // 去重：以 name|domain|path 作为键
+      const map = new Map()
+      for (const c of results) {
+        const key = `${(c.name || '').toLowerCase()}|${(c.domain || '').toLowerCase()}|${c.path || '/'}`
+        // 简单覆盖：优先保留 secure/httpOnly 为真者
+        const existing = map.get(key)
+        if (!existing) {
+          map.set(key, c)
+        } else {
+          const score = (x) =>
+            (x.secure ? 1 : 0) + (x.httpOnly ? 1 : 0) + (x.expirationDate ? 1 : 0)
+          map.set(score(c) >= score(existing) ? c : existing)
+        }
+      }
+
+      return Array.from(map.values())
+    } catch (e) {
+      return this.session.cookies.get({ url: activeUrl })
+    }
   }
 
   getCurrentPageLoginInfo() {
@@ -779,14 +855,23 @@ class Browser {
       })()
     `,
       )
-      .then((pageData) => {
-        return this.session.cookies.get({ url: url }).then((cookies) => {
-          return {
-            pageData: pageData,
-            cookies: cookies,
-            timestamp: new Date().toISOString(),
+      .then(async (pageData) => {
+        let cookies
+        try {
+          const hostname = new URL(url).hostname.toLowerCase()
+          if (hostname.endsWith('baidu.com')) {
+            cookies = await this.getBaiduRelatedCookies(url)
+          } else {
+            cookies = await this.session.cookies.get({ url })
           }
-        })
+        } catch {
+          cookies = await this.session.cookies.get({ url })
+        }
+        return {
+          pageData,
+          cookies,
+          timestamp: new Date().toISOString(),
+        }
       })
   }
 
@@ -1403,8 +1488,18 @@ class Browser {
           })()
         `)
 
-        // 获取cookie数据
-        const cookies = await this.session.cookies.get({ url: url })
+        // 获取 cookie 数据：对 baidu 生态做聚合，其他域按原逻辑
+        let cookies
+        try {
+          const hostname = new URL(url).hostname.toLowerCase()
+          if (hostname.endsWith('baidu.com')) {
+            cookies = await this.getBaiduRelatedCookies(url)
+          } else {
+            cookies = await this.session.cookies.get({ url: url })
+          }
+        } catch {
+          cookies = await this.session.cookies.get({ url: url })
+        }
 
         return {
           success: true,
@@ -1460,19 +1555,28 @@ class Browser {
           `)
         }
 
-        // 设置cookie数据
-        if (data.cookies && data.url) {
+        // 设置 cookie 数据：按每个 cookie 的域/路径生成正确 URL，避免域不匹配导致丢失
+        if (data.cookies) {
           for (const cookie of data.cookies) {
-            await this.session.cookies.set({
-              url: data.url,
-              name: cookie.name,
-              value: cookie.value,
-              domain: cookie.domain,
-              path: cookie.path,
-              secure: cookie.secure,
-              httpOnly: cookie.httpOnly,
-              expirationDate: cookie.expirationDate,
-            })
+            try {
+              const protocol = cookie.secure ? 'https' : 'http'
+              const host = (
+                cookie.domain || new URL(data.url || 'https://example.com/').hostname
+              ).replace(/^\./, '')
+              const pathStr = cookie.path || '/'
+              const setUrl = `${protocol}://${host}${pathStr}`
+
+              await this.session.cookies.set({
+                url: setUrl,
+                name: cookie.name,
+                value: cookie.value,
+                domain: cookie.domain,
+                path: cookie.path,
+                secure: cookie.secure,
+                httpOnly: cookie.httpOnly,
+                expirationDate: cookie.expirationDate,
+              })
+            } catch (e) {}
           }
         }
 

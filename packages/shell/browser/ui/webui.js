@@ -34,6 +34,7 @@ class WebUI {
     'csdn.net',
     'cnblogs.com',
     'segmentfault.com',
+    '9kd.com',
 
     // 新闻媒体
     'people.com.cn',

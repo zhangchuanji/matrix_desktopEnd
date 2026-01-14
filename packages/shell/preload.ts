@@ -9,17 +9,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCurrentPageData: () => ipcRenderer.invoke('get-current-page-data'),
 
   // 新增：设置cookie和localStorage数据到新页面
-  setPageData: (data) => ipcRenderer.invoke('set-page-data', data),
+  setPageData: (data: any) => ipcRenderer.invoke('set-page-data', data),
 
   // 新增：获取指定URL的cookie数据
-  getCookiesForUrl: (url) => ipcRenderer.invoke('get-cookies-for-url', url),
+  getCookiesForUrl: (url: any) => ipcRenderer.invoke('get-cookies-for-url', url),
 
   // 新增：设置cookie数据
-  setCookies: (cookies, url) => ipcRenderer.invoke('set-cookies', cookies, url),
+  setCookies: (cookies: any, url: any) => ipcRenderer.invoke('set-cookies', cookies, url),
 
   // 修复事件监听器 - 关键修复
-  onAccountSaved: (callback) => {
-    const handler = (event, ...args) => {
+  onAccountSaved: (callback: any) => {
+    const handler = (event: any, ...args: any[]) => {
       // 确保正确传递数据
       if (args.length > 0) {
         callback(args[0])
@@ -32,5 +32,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('account-saved', handler)
   },
   // 添加创建无痕标签页的方法
-  createIncognitoTab: (url) => ipcRenderer.invoke('create-incognito-tab', url),
+  createIncognitoTab: (url: any) => ipcRenderer.invoke('create-incognito-tab', url),
 })

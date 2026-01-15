@@ -32,6 +32,8 @@
     "cross-env": "^7.0.2",
     "electron": "^37.1.0",
     "sharp": "^0.34.4",
-    "svg2png-many": "^0.0.7"
+    "svg2png-many": "^0.0.7",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3"
   }
 }

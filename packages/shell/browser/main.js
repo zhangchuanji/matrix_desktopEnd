@@ -97,7 +97,7 @@ class Browser {
   windows = []
 
   urls = {
-    newtab: 'http://36.141.100.123:9000',
+    newtab: 'https://matrix.newgalaxyai.com/login?redirect=/index',
   }
 
   constructor() {
@@ -968,7 +968,7 @@ class Browser {
 
   createInitialWindow() {
     this.createWindow({
-      initialUrl: 'http://36.141.100.123:9000', // 添加这行
+      initialUrl: 'https://matrix.newgalaxyai.com/', // 添加这行
     })
   }
 

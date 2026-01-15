@@ -100,6 +100,16 @@ class WebUI {
   }
 
   async initTabs() {
+    // 首先获取当前窗口信息以设置 windowId
+    try {
+      const currentWindow = await new Promise((resolve) => chrome.windows.getCurrent(resolve))
+      if (currentWindow) {
+        this.windowId = currentWindow.id
+      }
+    } catch (e) {
+      console.error('Failed to get current window:', e)
+    }
+
     const tabs = await new Promise((resolve) => chrome.tabs.query({ windowId: -2 }, resolve))
     this.tabList = [...tabs]
     this.renderTabs()

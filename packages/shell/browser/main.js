@@ -54,10 +54,19 @@ class TabbedBrowserWindow {
     const self = this
 
     this.tabs.on('tab-created', function onTabCreated(tab) {
+      console.log('Tabs: tab-created event, calling addTab')
       tab.loadURL('https://www.baidu.com/')
 
       // Track tab that may have been created outside of the extensions API.
-      self.extensions.addTab(tab.webContents, tab.window)
+      try {
+        self.extensions.addTab(tab.webContents, tab.window)
+        console.log(
+          'Tabs: addTab success. Total tabs:',
+          self.extensions.getContext().store.tabs.size,
+        )
+      } catch (e) {
+        console.error('Tabs: addTab failed:', e)
+      }
     })
 
     this.tabs.on('tab-selected', function onTabSelected(tab) {
@@ -66,7 +75,7 @@ class TabbedBrowserWindow {
 
     queueMicrotask(() => {
       // Create initial tab
-      const tab = this.tabs.create()
+      const tab = this.tabs.create({ cleanSession: true })
 
       if (options.initialUrl) {
         tab.loadURL(options.initialUrl)
@@ -924,7 +933,7 @@ class Browser {
       return newWin.getFocusedTab()
     }
 
-    const tab = win.tabs.create()
+    const tab = win.tabs.create({ cleanSession: true })
 
     if (url) {
       tab.loadURL(url)
@@ -940,8 +949,8 @@ class Browser {
       console.log('🔒 标签页已标记为无痕模式')
     }
 
-    // 如果不是无痕模式，且有当前活跃标签页，则传递数据
-    if (!incognito && url) {
+    // 如果不是无痕模式，且有当前活跃标签页，且启用了数据传递，则传递数据
+    if (!incognito && url && this.enableDataTransfer) {
       const currentTab = win.getFocusedTab()
       if (currentTab && currentTab.webContents && !currentTab.webContents.isDestroyed()) {
         console.log('📊 准备传递数据到新标签页')
@@ -1021,10 +1030,8 @@ class Browser {
                   return newWin.getFocusedTab().webContents
                 }
 
-                const tab =
-                  guest && !guest.isDestroyed()
-                    ? win.tabs.create({ webContents: guest, webPreferences })
-                    : win.tabs.create()
+                // 强制使用干净会话，忽略 guest (因为它继承了 session)
+                const tab = win.tabs.create({ cleanSession: true })
 
                 await tab.loadURL(details.url)
 
@@ -1389,7 +1396,7 @@ class Browser {
                     activeTab.webContents.close()
                   } else {
                     // 是最后一个标签页，创建新的空白页后再关闭当前页
-                    const newTab = focusedWindow.tabs.create()
+                    const newTab = focusedWindow.tabs.create({ cleanSession: true })
                     newTab.loadURL('about:blank')
                     setTimeout(() => {
                       activeTab.webContents.close()

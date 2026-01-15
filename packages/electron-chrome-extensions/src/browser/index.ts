@@ -206,9 +206,10 @@ export class ElectronChromeExtensions extends EventEmitter {
 
   private checkWebContentsArgument(wc: Electron.WebContents) {
     if (this.ctx.session !== wc.session) {
-      throw new TypeError(
-        'Invalid WebContents argument. Its session must match the session provided to ElectronChromeExtensions constructor options.',
-      )
+      // 允许不同 session 的 WebContents，以便支持 "干净模式" 的标签页
+      // throw new TypeError(
+      //   'Invalid WebContents argument. Its session must match the session provided to ElectronChromeExtensions constructor options.',
+      // )
     }
   }
 

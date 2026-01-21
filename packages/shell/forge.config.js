@@ -11,7 +11,7 @@ const makers = [
     platforms: ['darwin'],
     config: {
       icon: './assets/icon.icns',
-      name: 'AIGEO 增长引擎',
+      name: 'AI GEO 增长引擎',
       arch: ['x64', 'arm64'],
     },
   },
@@ -19,7 +19,7 @@ const makers = [
     name: '@electron-forge/maker-squirrel',
     platforms: ['win32'],
     config: {
-      name: 'matrix-application',
+      name: 'AI GEO 增长引擎',
       authors: 'AIGEO Team',
       description: 'AIGEO Growth Engine',
       setupExe: 'AIGEO-Setup.exe',
@@ -44,8 +44,8 @@ if (process.platform === 'win32') {
       arch: 'x64',
       programFilesFolderName: 'AIGEO',
       shortName: 'AIGEO',
-      exe: 'matrix-application',
-      productName: 'AIGEO Growth Engine', // 使用英文避免编码问题
+      exe: 'AI GEO 增长引擎',
+      productName: 'AI GEO Growth Engine', // 使用英文避免编码问题
       icon: './assets/icon.ico',
       ui: {
         chooseDirectory: true,
@@ -61,8 +61,8 @@ if (process.platform === 'win32') {
 
 module.exports = {
   packagerConfig: {
-    name: 'matrix-application', // 内部名称使用英文
-    productName: 'AIGEO 增长引擎', // 产品显示名称使用中文
+    name: 'AI GEO 增长引擎', // 内部名称使用英文
+    productName: 'AI GEO 增长引擎', // 产品显示名称使用中文
     asar: true,
     extraResource: ['browser/ui'],
     icon: './assets/icon', // 会自动根据平台选择对应格式
@@ -74,8 +74,8 @@ module.exports = {
       CompanyName: 'AIGEO Team',
       FileDescription: 'AIGEO 增长引擎 - AI驱动的增长分析工具',
       ProductName: 'AIGEO 增长引擎',
-      InternalName: 'matrix-application',
-      OriginalFilename: 'matrix-application.exe',
+      InternalName: 'AI GEO 增长引擎',
+      OriginalFilename: 'AI GEO 增长引擎.exe',
     },
     // 让 webpack 插件自动处理 ignore 配置
     // ignore: 配置已移除，让 Electron Forge 自动处理

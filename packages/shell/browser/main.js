@@ -413,9 +413,11 @@ class Browser {
    * 针对 baidu 生态的多域登录（如 passport.baidu.com、wappass.baidu.com 等），
    * 合并去重后返回完整集合，避免只取当前 URL 导致不完整。
    * @param {string} activeUrl
+   * @param {Electron.Session} sessionToUse - 可选，指定使用的 session
    * @returns {Promise<Electron.Cookie[]>}
    */
-  async getBaiduRelatedCookies(activeUrl) {
+  async getBaiduRelatedCookies(activeUrl, sessionToUse = null) {
+    const session = sessionToUse || this.session
     try {
       const urlObj = new URL(activeUrl)
       const hosts = [
@@ -435,14 +437,14 @@ class Browser {
       const results = []
       for (const host of hosts) {
         try {
-          const cs = await this.session.cookies.get({ url: host })
+          const cs = await session.cookies.get({ url: host })
           results.push(...cs)
         } catch {}
       }
 
       for (const dom of domainFilters) {
         try {
-          const cs = await this.session.cookies.get({ domain: dom })
+          const cs = await session.cookies.get({ domain: dom })
           results.push(...cs)
         } catch {}
       }
@@ -464,8 +466,127 @@ class Browser {
 
       return Array.from(map.values())
     } catch (e) {
-      return this.session.cookies.get({ url: activeUrl })
+      return session.cookies.get({ url: activeUrl })
     }
+  }
+
+  /**
+   * 获取指定 URL 的所有相关 Cookie（包括子域和父域）
+   * @param {string} url
+   * @param {Electron.Session} sessionToUse - 可选，指定使用的 session
+   * @returns {Promise<Electron.Cookie[]>}
+   */
+  async getAllCookies(url, sessionToUse = null) {
+    const session = sessionToUse || this.session
+    try {
+      const urlObj = new URL(url)
+      const hostname = urlObj.hostname
+
+      // 1. 获取该 URL 匹配的 Cookie (最准确，包含路径匹配)
+      const cookiesByUrl = await session.cookies.get({ url })
+
+      // 2. 获取该域名下的所有 Cookie (包含可能的子域/父域遗漏)
+      // 注意：session.cookies.get({ domain }) 会匹配该域名及其子域
+      const cookiesByDomain = await session.cookies.get({ domain: hostname })
+
+      // 3. 尝试获取父域 Cookie (针对 www.example.com -> .example.com 的情况)
+      const parts = hostname.split('.')
+      let cookiesByParentDomain = []
+      if (parts.length > 2) {
+        // 简单的父域提取：取最后两段 (example.com)
+        // 注意：这对于 .co.uk 等二级顶级域名可能不准确，但作为补充手段是可以的
+        const parentDomain = parts.slice(-2).join('.')
+        try {
+          cookiesByParentDomain = await session.cookies.get({ domain: parentDomain })
+        } catch (e) {}
+      }
+
+      // 合并并去重
+      const allCookies = [...cookiesByUrl, ...cookiesByDomain, ...cookiesByParentDomain]
+      const map = new Map()
+
+      for (const c of allCookies) {
+        // 唯一键：name + domain + path
+        const key = `${(c.name || '').toLowerCase()}|${(c.domain || '').toLowerCase()}|${c.path || '/'}`
+
+        // 如果有重复，优先保留更"完整"的 (比如有过期时间的，或者 secure 的)
+        const existing = map.get(key)
+        if (!existing) {
+          map.set(key, c)
+        } else {
+          // 简单的权重比较
+          const score = (x) =>
+            (x.secure ? 1 : 0) + (x.httpOnly ? 1 : 0) + (x.expirationDate ? 1 : 0)
+          if (score(c) > score(existing)) {
+            map.set(key, c)
+          }
+        }
+      }
+
+      return Array.from(map.values())
+    } catch (error) {
+      console.error('Failed to get all cookies:', error)
+      // 降级：只用 URL 获取
+      return await session.cookies.get({ url })
+    }
+  }
+
+  async getAllFramesStorage(webContents) {
+    const framesData = {
+      localStorage: {},
+      sessionStorage: {},
+    }
+
+    const traverse = async (frame) => {
+      // 跳过主 frame，因为已经在主逻辑里获取了
+      if (frame !== webContents.mainFrame) {
+        try {
+          // 检查 URL 有效性
+          if (!frame.url || frame.url.startsWith('chrome:') || frame.url.startsWith('about:'))
+            return
+
+          const script = `
+            (() => {
+              const data = {
+                localStorage: {},
+                sessionStorage: {}
+              };
+              try {
+                // 尝试获取 Storage
+                if (window.localStorage) {
+                  for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key) data.localStorage[key] = localStorage.getItem(key);
+                  }
+                }
+                if (window.sessionStorage) {
+                  for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key) data.sessionStorage[key] = sessionStorage.getItem(key);
+                  }
+                }
+              } catch(e) {}
+              return data;
+            })()
+          `
+          const data = await frame.executeJavaScript(script).catch(() => ({}))
+
+          // 合并数据
+          if (data.localStorage) Object.assign(framesData.localStorage, data.localStorage)
+          if (data.sessionStorage) Object.assign(framesData.sessionStorage, data.sessionStorage)
+        } catch (e) {
+          // 忽略无法访问的 frame
+        }
+      }
+
+      // 递归遍历子 frame
+      for (const child of frame.frames) {
+        await traverse(child)
+      }
+    }
+
+    await traverse(webContents.mainFrame)
+    return framesData
   }
 
   getCurrentPageLoginInfo() {
@@ -477,6 +598,10 @@ class Browser {
     const tab = focusedWindow.getFocusedTab()
     if (!tab) {
       throw new Error('No active tab found')
+    }
+
+    if (tab.webContents.isDestroyed()) {
+      throw new Error('Tab content is destroyed')
     }
 
     const url = tab.webContents.getURL()
@@ -865,16 +990,34 @@ class Browser {
     `,
       )
       .then(async (pageData) => {
+        // 增强: 获取所有子 Frame 的 storage 数据
+        try {
+          const framesStorage = await this.getAllFramesStorage(tab.webContents)
+
+          // 合并到主数据中
+          if (framesStorage.localStorage) {
+            Object.assign(pageData.storage.localStorage, framesStorage.localStorage)
+          }
+          if (framesStorage.sessionStorage) {
+            Object.assign(pageData.storage.sessionStorage, framesStorage.sessionStorage)
+          }
+        } catch (err) {
+          console.error('Failed to get frames storage:', err)
+        }
+
         let cookies
         try {
+          const session = tab.webContents.session
           const hostname = new URL(url).hostname.toLowerCase()
           if (hostname.endsWith('baidu.com')) {
-            cookies = await this.getBaiduRelatedCookies(url)
+            cookies = await this.getBaiduRelatedCookies(url, session)
           } else {
-            cookies = await this.session.cookies.get({ url })
+            // 使用增强的 getAllCookies 方法
+            cookies = await this.getAllCookies(url, session)
           }
-        } catch {
-          cookies = await this.session.cookies.get({ url })
+        } catch (e) {
+          console.error('Cookie fetch error:', e)
+          cookies = await tab.webContents.session.cookies.get({ url })
         }
         return {
           pageData,
@@ -1134,7 +1277,7 @@ class Browser {
             new Promise((resolve) => setTimeout(() => resolve({}), 3000)),
           ]),
           Promise.race([
-            this.session.cookies.get({ url: sourceUrl }),
+            this.getAllCookies(sourceUrl, sourceWebContents.session), // 传入 source session
             new Promise((resolve) => setTimeout(() => resolve([]), 3000)),
           ]),
         ]

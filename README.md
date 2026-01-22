@@ -30,7 +30,7 @@ yarn install
 
 ```bash
 # 标准开发启动（推荐）
-yarn start
+yarn --cwd ./packages/shell start
 
 # 调试模式启动
 yarn start:debug

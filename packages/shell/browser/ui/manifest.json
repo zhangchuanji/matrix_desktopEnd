@@ -4,6 +4,6 @@
   "manifest_version": 3,
   "permissions": [],
   "chrome_url_overrides": {
-    "newtab": "https://www.baidu.com/"
+    "newtab": "https://matrix.newgalaxyai.com/index"
   }
 }

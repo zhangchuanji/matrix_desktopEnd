@@ -4,6 +4,8 @@ const path = require('path')
 
 const toolbarHeight = 78
 
+const STORAGE_WHITELIST = ['https://matrix.newgalaxyai.com']
+
 class Tab {
   constructor(parentWindow, wcvOpts = {}) {
     this.invalidateLayout = this.invalidateLayout.bind(this)
@@ -24,7 +26,9 @@ class Tab {
       if (isMainFrame && !isInPlace) {
         try {
           const parsedUrl = new URL(url)
-          if (['http:', 'https:'].includes(parsedUrl.protocol)) {
+          const isWhitelisted = STORAGE_WHITELIST.some((domain) => url.startsWith(domain))
+
+          if (!isWhitelisted && ['http:', 'https:'].includes(parsedUrl.protocol)) {
             this.webContents.session
               .clearStorageData({
                 origin: parsedUrl.origin,
@@ -69,7 +73,9 @@ class Tab {
   async loadURL(url) {
     try {
       const parsedUrl = new URL(url)
-      if (['http:', 'https:'].includes(parsedUrl.protocol)) {
+      const isWhitelisted = STORAGE_WHITELIST.some((domain) => url.startsWith(domain))
+
+      if (!isWhitelisted && ['http:', 'https:'].includes(parsedUrl.protocol)) {
         await this.view.webContents.session.clearStorageData({
           origin: parsedUrl.origin,
           storages: ['localstorage'],

@@ -55,7 +55,7 @@ class TabbedBrowserWindow {
 
     this.tabs.on('tab-created', function onTabCreated(tab) {
       console.log('Tabs: tab-created event, calling addTab')
-      tab.loadURL('https://www.baidu.com/')
+      // tab.loadURL('https://www.baidu.com/')
 
       // Track tab that may have been created outside of the extensions API.
       try {
@@ -79,6 +79,8 @@ class TabbedBrowserWindow {
 
       if (options.initialUrl) {
         tab.loadURL(options.initialUrl)
+      } else {
+        tab.loadURL('https://www.baidu.com/')
       }
     })
   }
@@ -97,7 +99,7 @@ class Browser {
   windows = []
 
   urls = {
-    newtab: 'https://matrix.newgalaxyai.com/login?redirect=/index',
+    newtab: 'https://www.baidu.com/',
   }
 
   constructor() {
@@ -1080,6 +1082,8 @@ class Browser {
 
     if (url) {
       tab.loadURL(url)
+    } else {
+      tab.loadURL('https://www.baidu.com/')
     }
 
     if (active) {
@@ -1111,7 +1115,7 @@ class Browser {
 
   createInitialWindow() {
     this.createWindow({
-      initialUrl: 'https://matrix.newgalaxyai.com/', // 添加这行
+      initialUrl: 'https://matrix.newgalaxyai.com/index', // 添加这行
     })
   }
 

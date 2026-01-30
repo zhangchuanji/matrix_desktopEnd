@@ -68,8 +68,8 @@ function parseCrx(buffer: Buffer): CrxInfo {
   } else {
     // For CRX3, extract public key from header
     // CRX3 header contains a protocol buffer message
-    const crxFileHeader = readCrxFileHeader(new Pbf(header))
-    const crxSignedData = readSignedData(new Pbf(crxFileHeader.signed_header_data))
+    const crxFileHeader = readCrxFileHeader(new Pbf(header as any))
+    const crxSignedData = readSignedData(new Pbf(crxFileHeader.signed_header_data as any))
     const declaredCrxId = crxSignedData.crx_id
       ? convertHexadecimalToIDAlphabet(crxSignedData.crx_id.toString('hex'))
       : null

@@ -305,12 +305,28 @@ class Browser {
   initSession() {
     this.session = session.defaultSession
 
-    // Remove Electron and App details to closer emulate Chrome's UA
-    const userAgent = this.session
-      .getUserAgent()
-      .replace(/\sElectron\/\S+/, '')
-      .replace(new RegExp(`\\s${app.getName()}/\\S+`), '')
+    // Force a standard Chrome User-Agent to avoid detection issues (Error 10001)
+    // Using Chrome 132 on macOS
+    const userAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+
+    console.log('Setting User-Agent:', userAgent)
     this.session.setUserAgent(userAgent)
+
+    // Clear Zhihu cookies to resolve 10001 error
+    this.session
+      .clearStorageData({
+        storages: ['cookies', 'localstorage'],
+        origin: 'https://www.zhihu.com',
+      })
+      .then(() => console.log('Cleared Zhihu (www) data'))
+
+    this.session
+      .clearStorageData({
+        storages: ['cookies', 'localstorage'],
+        origin: 'https://zhihu.com',
+      })
+      .then(() => console.log('Cleared Zhihu (root) data'))
 
     // Setup login monitoring
     this.setupLoginMonitoring()
@@ -366,6 +382,23 @@ class Browser {
     })
 
     // Monitor network requests
+    this.session.webRequest.onBeforeSendHeaders((details, callback) => {
+      const { requestHeaders } = details
+
+      // 强制覆盖 User-Agent，解决 session.setUserAgent 失效的问题
+      requestHeaders['User-Agent'] =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+
+      // 伪装 Client Hints，防止被识别为 Electron
+      // 对应 Chrome 132
+      requestHeaders['Sec-CH-UA'] =
+        '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"'
+      requestHeaders['Sec-CH-UA-Mobile'] = '?0'
+      requestHeaders['Sec-CH-UA-Platform'] = '"macOS"'
+
+      callback({ requestHeaders })
+    })
+
     this.session.webRequest.onBeforeRequest((details, callback) => {
       const url = details.url.toLowerCase()
       const loginUrls = ['login', 'signin', 'auth', 'authenticate', 'oauth']
@@ -1050,10 +1083,18 @@ class Browser {
           enableRemoteModule: false,
           contextIsolation: true,
           worldSafeExecuteJavaScript: true,
+          disableBlinkFeatures: 'AutomationControlled', // 双重保险：禁用自动化控制特征
           preload: PATHS.PRELOAD, // 添加这行关键配置
         },
       },
     })
+
+    // 强制设置 User-Agent，防止初始请求泄漏
+    // Using Chrome 132 on macOS
+    const userAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+    win.webContents.setUserAgent(userAgent)
+
     this.windows.push(win)
 
     if (process.env.SHELL_DEBUG) {

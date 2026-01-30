@@ -1,5 +1,5 @@
 {
-  "name": "matrix-application",
+  "name": "matrix-shell",
   "productName": "AI GEO 增长引擎",
   "version": "1.0.0",
   "description": "Minimum Viable Browser shell built on Electron.",
@@ -15,9 +15,9 @@
   "author": "Samuel Maddock <sam@samuelmaddock.com>",
   "private": true,
   "dependencies": {
-    "electron-chrome-context-menu": "^1.1.0",
-    "electron-chrome-extensions": "^4.6.0",
-    "electron-chrome-web-store": "^0.10.0",
+    "electron-chrome-context-menu": "workspace:*",
+    "electron-chrome-extensions": "workspace:*",
+    "electron-chrome-web-store": "workspace:*",
     "electron-squirrel-startup": "^1.0.0"
   },
   "devDependencies": {

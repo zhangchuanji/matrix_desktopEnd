@@ -158,11 +158,20 @@ class Tabs extends EventEmitter {
         persistent: false, // 内存中会话
       })
 
+      // 关键修复：为新会话应用网络拦截规则，伪装 Chrome 132
+      // 必须在这里重新应用，因为新 session 不继承默认 session 的拦截器
+      cleanSession.webRequest.onBeforeSendHeaders((details, callback) => {
+        const { requestHeaders } = details
+        requestHeaders['User-Agent'] =
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+        requestHeaders['Sec-CH-UA'] =
+          '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"'
+        requestHeaders['Sec-CH-UA-Mobile'] = '?0'
+        requestHeaders['Sec-CH-UA-Platform'] = '"macOS"'
+        callback({ requestHeaders })
+      })
+
       // 注册 preload 脚本
-      // 注意：这里的路径需要与 main.js 中的 PATHS.PRELOAD 保持一致
-      // PATHS.PRELOAD = path.join(__dirname, '../renderer/browser/preload.js')
-      // tabs.js 在 packages/shell/browser/tabs.js
-      // preload.js 在 packages/shell/renderer/browser/preload.js
       const preloadPath = path.join(__dirname, '../renderer/browser/preload.js')
 
       if ('registerPreloadScript' in cleanSession) {
@@ -178,6 +187,9 @@ class Tabs extends EventEmitter {
       // 确保 webPreferences 存在
       webContentsViewOptions.webPreferences = webContentsViewOptions.webPreferences || {}
 
+      // 双重保险：禁用自动化控制特征
+      webContentsViewOptions.webPreferences.disableBlinkFeatures = 'AutomationControlled'
+
       // 设置 session
       webContentsViewOptions.webPreferences.session = cleanSession
       // 也可以设置 partition 字符串作为备份（虽然提供了 session 对象通常优先）
@@ -185,9 +197,29 @@ class Tabs extends EventEmitter {
 
       // 删除标记
       delete webContentsViewOptions.cleanSession
+    } else {
+      // 即使没有 cleanSession，也要确保 preload 正确设置
+      const preloadPath = path.join(__dirname, '../renderer/browser/preload.js')
+      if (!webContentsViewOptions.webPreferences) {
+        webContentsViewOptions.webPreferences = {}
+      }
+
+      // 双重保险：禁用自动化控制特征
+      webContentsViewOptions.webPreferences.disableBlinkFeatures = 'AutomationControlled'
+
+      // 如果没有设置 preload，则设置它
+      if (!webContentsViewOptions.webPreferences.preload) {
+        webContentsViewOptions.webPreferences.preload = preloadPath
+      }
     }
 
     const tab = new Tab(this.window, webContentsViewOptions)
+
+    // 强制设置 User-Agent，防止初始请求泄漏
+    const userAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+    tab.webContents.setUserAgent(userAgent)
+
     this.tabList.push(tab)
     if (!this.selected) this.selected = tab
     tab.show() // must be attached to window

@@ -38,9 +38,9 @@ const trustedHosts = ['matrix.newgalaxyai.com', 'localhost', '127.0.0.1']
 const currentHost = window.location.hostname
 
 // 简单的子域名检查
-const isTrusted = trustedHosts.some(
-  (host) => currentHost === host || currentHost.endsWith('.' + host),
-)
+const isTrusted =
+  trustedHosts.some((host) => currentHost === host || currentHost.endsWith('.' + host)) ||
+  window.location.protocol === 'chrome-extension:'
 
 if (isTrusted) {
   contextBridge.exposeInMainWorld('electronAPI', {

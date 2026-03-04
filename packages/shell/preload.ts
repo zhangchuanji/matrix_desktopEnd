@@ -34,7 +34,7 @@ try {
 }
 
 // 仅在受信任的域名下暴露 electronAPI
-const trustedHosts = ['matrix.newgalaxyai.com', 'localhost', '127.0.0.1']
+const trustedHosts = ['matrix.newgalaxyai.com', 'http://192.168.1.216', 'localhost', '127.0.0.1']
 const currentHost = window.location.hostname
 
 // 简单的子域名检查

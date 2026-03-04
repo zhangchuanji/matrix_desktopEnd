@@ -4,7 +4,12 @@ const path = require('path')
 
 const toolbarHeight = 78
 
-const STORAGE_WHITELIST = ['https://matrix.newgalaxyai.com']
+const STORAGE_WHITELIST = [
+  'https://matrix.newgalaxyai.com',
+  'http://192.168.1.216',
+  'http://localhost',
+  'http://127.0.0.1',
+]
 
 class Tab {
   constructor(parentWindow, wcvOpts = {}) {

@@ -567,20 +567,23 @@ class Browser {
   }
 
   async getAllFramesStorage(webContents) {
+    if (webContents.isDestroyed()) return {}
+
     const framesData = {
       localStorage: {},
       sessionStorage: {},
     }
 
     const traverse = async (frame) => {
-      // 跳过主 frame，因为已经在主逻辑里获取了
-      if (frame !== webContents.mainFrame) {
-        try {
-          // 检查 URL 有效性
-          if (!frame.url || frame.url.startsWith('chrome:') || frame.url.startsWith('about:'))
-            return
+      try {
+        // 跳过主 frame，因为已经在主逻辑里获取了
+        if (frame !== webContents.mainFrame) {
+          try {
+            // 检查 URL 有效性
+            if (!frame.url || frame.url.startsWith('chrome:') || frame.url.startsWith('about:'))
+              return
 
-          const script = `
+            const script = `
             (() => {
               const data = {
                 localStorage: {},
@@ -604,23 +607,31 @@ class Browser {
               return data;
             })()
           `
-          const data = await frame.executeJavaScript(script).catch(() => ({}))
+            const data = await frame.executeJavaScript(script).catch(() => ({}))
 
-          // 合并数据
-          if (data.localStorage) Object.assign(framesData.localStorage, data.localStorage)
-          if (data.sessionStorage) Object.assign(framesData.sessionStorage, data.sessionStorage)
-        } catch (e) {
-          // 忽略无法访问的 frame
+            // 合并数据
+            if (data.localStorage) Object.assign(framesData.localStorage, data.localStorage)
+            if (data.sessionStorage) Object.assign(framesData.sessionStorage, data.sessionStorage)
+          } catch (e) {
+            // 忽略无法访问的 frame
+          }
         }
-      }
 
-      // 递归遍历子 frame
-      for (const child of frame.frames) {
-        await traverse(child)
+        // 递归遍历子 frame
+        for (const child of frame.frames) {
+          await traverse(child)
+        }
+      } catch (e) {
+        // 忽略遍历错误
       }
     }
 
-    await traverse(webContents.mainFrame)
+    try {
+      if (!webContents.isDestroyed()) {
+        await traverse(webContents.mainFrame)
+      }
+    } catch (e) {}
+
     return framesData
   }
 
@@ -1025,6 +1036,11 @@ class Browser {
     `,
       )
       .then(async (pageData) => {
+        // 检查 tab 是否还存在
+        if (tab.webContents.isDestroyed()) {
+          throw new Error('Tab was closed during data capture')
+        }
+
         // 增强: 获取所有子 Frame 的 storage 数据
         try {
           const framesStorage = await this.getAllFramesStorage(tab.webContents)
@@ -1038,6 +1054,10 @@ class Browser {
           }
         } catch (err) {
           console.error('Failed to get frames storage:', err)
+        }
+
+        if (tab.webContents.isDestroyed()) {
+          throw new Error('Tab closed during data capture')
         }
 
         let cookies

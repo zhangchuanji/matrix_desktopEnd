@@ -4,56 +4,6 @@ class WebUI {
   /** @type {chrome.tabs.Tab[]} */
   tabList = []
 
-  // 定义媒体运营商网址列表
-  mediaOperatorDomains = [
-    // 社交媒体平台
-    'weibo.com',
-    'weibo.cn',
-    'douyin.com',
-    'tiktok.com',
-    'xiaohongshu.com',
-    'zhihu.com',
-    'bilibili.com',
-    'kuaishou.com',
-    '360kuai.com',
-
-    // 视频平台
-    'youtube.com',
-    'youku.com',
-    'iqiyi.com',
-    'qq.com',
-    'sohu.com',
-    'sina.com.cn',
-
-    // 内容创作平台
-    'baijiahao.baidu.com',
-    'toutiao.com',
-    'mp.sohu.com',
-    'mp.weixin.qq.com',
-    'jianshu.com',
-    'csdn.net',
-    'cnblogs.com',
-    'segmentfault.com',
-    '9kd.com',
-
-    // 新闻媒体
-    'people.com.cn',
-    'xinhuanet.com',
-    'cctv.com',
-    'chinanews.com',
-    'thepaper.cn',
-    'caixin.com',
-
-    // 其他媒体平台
-    'facebook.com',
-    'twitter.com',
-    'instagram.com',
-    'linkedin.com',
-    'pinterest.com',
-    'snapchat.com',
-    'reddit.com',
-  ]
-
   constructor() {
     const $ = document.querySelector.bind(document)
 
@@ -279,86 +229,21 @@ class WebUI {
   }
 
   /**
-   * 检查当前URL是否为媒体运营商网址
+   * 检查当前URL是否为有效的网页（允许保存账号）
    * @param {string} url - 要检查的URL
-   * @returns {boolean} - 是否为媒体运营商网址
+   * @returns {boolean} - 是否为有效网页
    */
   isMediaOperatorUrl(url) {
     if (!url) return false
 
     try {
       const urlObj = new URL(url)
-      const hostname = urlObj.hostname.toLowerCase()
-      const fullUrl = url.toLowerCase()
-
-      // 移除 www. 前缀进行匹配
-      const cleanHostname = hostname.replace(/^www\./, '')
-
-      return this.mediaOperatorDomains.some((domain) => {
-        // 1. 完全匹配域名
-        if (cleanHostname === domain || cleanHostname.endsWith('.' + domain)) {
-          return true
-        }
-
-        // 2. 检查URL中是否包含平台关键词
-        const platformKeywords = this.getPlatformKeywords(domain)
-        return platformKeywords.some((keyword) => {
-          return fullUrl.includes(keyword) || cleanHostname.includes(keyword)
-        })
-      })
+      // 只要是 http 或 https 协议的网页，都允许保存账号
+      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:'
     } catch (error) {
       console.error('URL解析错误:', error)
       return false
     }
-  }
-
-  /**
-   * 获取平台的关键词列表
-   * @param {string} domain - 域名
-   * @returns {string[]} - 关键词列表
-   */
-  getPlatformKeywords(domain) {
-    const keywordMap = {
-      'weibo.com': ['weibo', '微博'],
-      'weibo.cn': ['weibo', '微博'],
-      'douyin.com': ['douyin', '抖音'],
-      'tiktok.com': ['tiktok'],
-      'xiaohongshu.com': ['xiaohongshu', 'xhs', '小红书'],
-      'zhihu.com': ['zhihu', '知乎'],
-      'bilibili.com': ['bilibili', 'bili', 'b站'],
-      'kuaishou.com': ['kuaishou', '快手'],
-      'youtube.com': ['youtube'],
-      'youku.com': ['youku', '优酷'],
-      'iqiyi.com': ['iqiyi', '爱奇艺'],
-      'qq.com': ['qq', '腾讯'],
-      'sohu.com': ['sohu', '搜狐'],
-      'sina.com.cn': ['sina', '新浪'],
-      // 内容创作平台
-      'baijiahao.baidu.com': ['baijiahao', '百家号'],
-      'toutiao.com': ['toutiao', '今日头条', '头条'],
-      'mp.sohu.com': ['sohu', '搜狐号', '搜狐'],
-      'mp.weixin.qq.com': ['weixin', '微信公众号', '公众号', 'mp'],
-      'jianshu.com': ['jianshu', '简书'],
-      'csdn.net': ['csdn'],
-      'cnblogs.com': ['cnblogs', '博客园'],
-      'segmentfault.com': ['segmentfault', 'sf'],
-      // 新闻媒体
-      'people.com.cn': ['people', '人民'],
-      'xinhuanet.com': ['xinhua', '新华'],
-      'cctv.com': ['cctv', '央视'],
-      'chinanews.com': ['chinanews', '中新'],
-      'thepaper.cn': ['thepaper', '澎湃'],
-      'caixin.com': ['caixin', '财新'],
-      'facebook.com': ['facebook', 'fb'],
-      'twitter.com': ['twitter'],
-      'instagram.com': ['instagram', 'ig'],
-      'linkedin.com': ['linkedin'],
-      'pinterest.com': ['pinterest'],
-      'snapchat.com': ['snapchat'],
-      'reddit.com': ['reddit'],
-    }
-
-    return keywordMap[domain] || [domain.split('.')[0]]
   }
 
   /**

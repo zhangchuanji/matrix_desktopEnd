@@ -5,5 +5,9 @@ const { app } = require('electron')
 // 伪装显卡信息（可选，视情况而定）
 // app.commandLine.appendSwitch('disable-gpu-driver-bug-workarounds')
 
+// Disable sandbox to fix GPU/Network service crashes on macOS
+app.commandLine.appendSwitch('no-sandbox')
+app.commandLine.appendSwitch('disable-gpu-sandbox')
+
 const Browser = require('./browser/main')
 new Browser()

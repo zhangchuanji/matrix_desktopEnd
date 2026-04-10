@@ -870,6 +870,16 @@ class Browser {
           else if (hostname.includes('kuaishou.com')) platform = 'kuaishou'
           else if (hostname.includes('bilibili.com')) platform = 'bilibili'
           else if (hostname.includes('xiaohongshu.com')) platform = 'xiaohongshu'
+          else {
+            const parts = hostname.split('.')
+            if (parts.length > 2) {
+              platform = parts[parts.length - 2]
+            } else if (parts.length === 2) {
+              platform = parts[0]
+            } else {
+              platform = hostname
+            }
+          }
           
           userInfo.platform = platform
           

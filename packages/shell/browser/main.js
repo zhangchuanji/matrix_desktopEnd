@@ -21,6 +21,22 @@ const PATHS = {
 
 let webuiExtensionId
 
+const STORAGE_WHITELIST = [
+  'https://matrix.newgalaxyai.com',
+  'http://192.168.1.216',
+  'http://localhost',
+  'http://127.0.0.1',
+]
+
+const isWhitelistedUrl = (url) => {
+  if (!url) return false
+  try {
+    return STORAGE_WHITELIST.some((domain) => url.startsWith(domain))
+  } catch (e) {
+    return false
+  }
+}
+
 const getParentWindowOfTab = (tab) => {
   switch (tab.getType()) {
     case 'window':
@@ -75,13 +91,11 @@ class TabbedBrowserWindow {
 
     queueMicrotask(() => {
       // Create initial tab
-      const tab = this.tabs.create({ cleanSession: true })
+      const initialUrl = options.initialUrl || 'https://www.baidu.com/'
+      const isWhitelisted = isWhitelistedUrl(initialUrl)
+      const tab = this.tabs.create({ cleanSession: !isWhitelisted })
 
-      if (options.initialUrl) {
-        tab.loadURL(options.initialUrl)
-      } else {
-        tab.loadURL('https://www.baidu.com/')
-      }
+      tab.loadURL(initialUrl)
     })
   }
 
@@ -1149,7 +1163,8 @@ class Browser {
       return newWin.getFocusedTab()
     }
 
-    const tab = win.tabs.create({ cleanSession: true })
+    const isWhitelisted = isWhitelistedUrl(url)
+    const tab = win.tabs.create({ cleanSession: !isWhitelisted })
 
     if (url) {
       tab.loadURL(url)
@@ -1248,8 +1263,9 @@ class Browser {
                   return newWin.getFocusedTab().webContents
                 }
 
-                // 强制使用干净会话，忽略 guest (因为它继承了 session)
-                const tab = win.tabs.create({ cleanSession: true })
+                const isWhitelisted = isWhitelistedUrl(details.url)
+                // 强制使用干净会话，忽略 guest (因为它继承了 session)，除非在白名单中
+                const tab = win.tabs.create({ cleanSession: !isWhitelisted })
 
                 await tab.loadURL(details.url)
 
@@ -1546,9 +1562,21 @@ class Browser {
         totalAccounts: accounts.length,
       }
     } catch (error) {
+      let errorMsg = 'Unknown error'
+      if (error instanceof Error) {
+        errorMsg = error.message
+      } else if (typeof error === 'object') {
+        try {
+          errorMsg = JSON.stringify(error)
+        } catch (e) {
+          errorMsg = String(error)
+        }
+      } else {
+        errorMsg = String(error)
+      }
       return {
         success: false,
-        error: error.message,
+        error: errorMsg,
       }
     }
   }
@@ -1595,43 +1623,26 @@ class Browser {
           }
 
           this.broadcastToAllTabs('account-saved', broadcastData)
-
-          // // 额外延迟广播，确保所有标签页都能收到
-          // setTimeout(() => {
-          //   this.broadcastToAllTabs('account-saved', broadcastData)
-          // }, 100)
-
-          // 保存成功后关闭当前标签页
-          setTimeout(() => {
-            try {
-              const focusedWindow = this.getFocusedWindow()
-              if (focusedWindow) {
-                const activeTab = focusedWindow.getFocusedTab()
-                if (activeTab) {
-                  // 检查是否是最后一个标签页
-                  if (focusedWindow.tabs.tabList.length > 1) {
-                    // 不是最后一个标签页，直接关闭
-                    activeTab.webContents.close()
-                  } else {
-                    // 是最后一个标签页，创建新的空白页后再关闭当前页
-                    const newTab = focusedWindow.tabs.create({ cleanSession: true })
-                    newTab.loadURL('about:blank')
-                    setTimeout(() => {
-                      activeTab.webContents.close()
-                    }, 100)
-                  }
-                }
-              }
-            } catch (closeError) {}
-          }, 500) // 延迟500ms确保广播完成
         } else {
         }
 
         return saveResult
       } catch (error) {
+        let errorMsg = 'Unknown error'
+        if (error instanceof Error) {
+          errorMsg = error.message
+        } else if (typeof error === 'object') {
+          try {
+            errorMsg = JSON.stringify(error)
+          } catch (e) {
+            errorMsg = String(error)
+          }
+        } else {
+          errorMsg = String(error)
+        }
         return {
           success: false,
-          error: error.message,
+          error: errorMsg,
         }
       }
     })

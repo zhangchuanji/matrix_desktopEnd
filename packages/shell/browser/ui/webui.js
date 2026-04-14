@@ -280,10 +280,18 @@ class WebUI {
 
       // Use electronAPI to capture login info
       const result = await window.electronAPI.captureLoginInfo()
+      console.log('Capture login info result:', result)
 
       if (result.success) {
+        alert('保存成功！')
+        if (activeTab && activeTab.id) {
+          // 在前端触发关闭当前标签页
+          chrome.tabs.remove(activeTab.id)
+        }
       } else {
-        alert('保存失败: ' + result.error)
+        const errorMsg =
+          typeof result.error === 'object' ? JSON.stringify(result.error) : result.error
+        alert('保存失败: ' + errorMsg)
       }
     } catch (error) {
       alert('保存账号信息时出错: ' + error.message)

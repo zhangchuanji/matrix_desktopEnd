@@ -225,6 +225,34 @@ class Tabs extends EventEmitter {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
     tab.webContents.setUserAgent(userAgent)
 
+    // 拦截导航：如果当前是干净会话，但将要导航到白名单 URL，则需要销毁此标签并用默认会话重新创建
+    tab.webContents.on('will-navigate', (event, navigationUrl) => {
+      try {
+        const isTargetWhitelisted = STORAGE_WHITELIST.some((domain) =>
+          navigationUrl.startsWith(domain),
+        )
+        if (isTargetWhitelisted && tab.webContents.session !== session.defaultSession) {
+          console.log('🔄 [Tabs] 拦截到白名单 URL 导航，正在切换到默认会话标签页:', navigationUrl)
+          event.preventDefault()
+
+          setTimeout(() => {
+            try {
+              // 先创建一个没有 cleanSession (即使用 defaultSession) 的新标签页
+              const newTab = this.create({ cleanSession: false })
+              // 再移除当前标签页，防止因标签页为空导致整个窗口被销毁
+              this.remove(tab.id)
+
+              newTab.loadURL(navigationUrl)
+            } catch (e) {
+              console.error('[Tabs] 切换会话标签页时出错:', e)
+            }
+          }, 10)
+        }
+      } catch (e) {
+        // 忽略无效 URL 导致的错误
+      }
+    })
+
     this.tabList.push(tab)
     if (!this.selected) this.selected = tab
     tab.show() // must be attached to window

@@ -265,9 +265,15 @@ class WebUI {
 
   async onSaveAccountClick() {
     try {
+      // 禁用按钮，防止重复点击
+      this.$.saveAccountButton.disabled = true
+      this.$.saveAccountButton.textContent = '保存中...'
+
       // Check if electronAPI is available
       if (!window.electronAPI || !window.electronAPI.captureLoginInfo) {
         alert('electronAPI 不可用，请确保应用正确加载')
+        this.$.saveAccountButton.disabled = false
+        this.$.saveAccountButton.textContent = '保存账号'
         return
       }
 
@@ -275,12 +281,18 @@ class WebUI {
       const activeTab = this.tabList.find((tab) => tab.active)
       if (!activeTab) {
         alert('没有活动的标签页')
+        this.$.saveAccountButton.disabled = false
+        this.$.saveAccountButton.textContent = '保存账号'
         return
       }
 
       // Use electronAPI to capture login info
       const result = await window.electronAPI.captureLoginInfo()
       console.log('Capture login info result:', result)
+
+      // 恢复按钮状态
+      this.$.saveAccountButton.disabled = false
+      this.$.saveAccountButton.textContent = '保存账号'
 
       if (result.success) {
         alert('保存成功！')

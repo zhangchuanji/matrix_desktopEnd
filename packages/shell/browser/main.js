@@ -167,7 +167,15 @@ class Browser {
   }
 
   getFocusedWindow() {
-    return this.windows.find((w) => w.window.isFocused()) || this.windows[0]
+    return (
+      this.windows.find((w) => {
+        try {
+          return w.window && !w.window.isDestroyed() && w.window.isFocused()
+        } catch (e) {
+          return false
+        }
+      }) || this.windows.find((w) => w.window && !w.window.isDestroyed())
+    )
   }
 
   getWindowFromBrowserWindow(window) {
@@ -661,7 +669,7 @@ class Browser {
     }
 
     if (tab.webContents.isDestroyed()) {
-      throw new Error('Tab content is destroyed')
+      throw new Error('Tab content is destroyed before execution')
     }
 
     const url = tab.webContents.getURL()
@@ -1062,7 +1070,7 @@ class Browser {
       .then(async (pageData) => {
         // 检查 tab 是否还存在
         if (tab.webContents.isDestroyed()) {
-          throw new Error('Tab was closed during data capture')
+          throw new Error('Tab was closed during data capture (after executeJavaScript)')
         }
 
         // 增强: 获取所有子 Frame 的 storage 数据
@@ -1081,7 +1089,7 @@ class Browser {
         }
 
         if (tab.webContents.isDestroyed()) {
-          throw new Error('Tab closed during data capture')
+          throw new Error('Tab closed during data capture (after frames storage)')
         }
 
         let cookies
@@ -1096,13 +1104,24 @@ class Browser {
           }
         } catch (e) {
           console.error('Cookie fetch error:', e)
-          cookies = await tab.webContents.session.cookies.get({ url })
+          if (!tab.webContents.isDestroyed()) {
+            try {
+              cookies = await tab.webContents.session.cookies.get({ url })
+            } catch (e2) {
+              cookies = []
+            }
+          } else {
+            throw new Error('Tab closed during cookie fetch')
+          }
         }
         return {
           pageData,
           cookies,
           timestamp: new Date().toISOString(),
         }
+      })
+      .catch((error) => {
+        throw new Error(`Data capture failed: ${error.message}`)
       })
   }
 
@@ -1599,10 +1618,20 @@ class Browser {
     // Handle login info capture requests
     ipcMain.handle('capture-login-info', async (event) => {
       try {
-        const loginInfo = await this.getCurrentPageLoginInfo()
+        let loginInfo
+        try {
+          loginInfo = await this.getCurrentPageLoginInfo()
+        } catch (e) {
+          return { success: false, error: 'getCurrentPageLoginInfo failed: ' + e.message }
+        }
 
         // 保存到文件
-        const saveResult = this.saveAccountToFile(loginInfo)
+        let saveResult
+        try {
+          saveResult = this.saveAccountToFile(loginInfo)
+        } catch (e) {
+          return { success: false, error: 'saveAccountToFile failed: ' + e.message }
+        }
 
         // 广播到所有窗口的所有标签页
         if (saveResult.success) {
@@ -1622,8 +1651,11 @@ class Browser {
             saveResult: saveResult,
           }
 
-          this.broadcastToAllTabs('account-saved', broadcastData)
-        } else {
+          try {
+            this.broadcastToAllTabs('account-saved', broadcastData)
+          } catch (e) {
+            console.error('broadcastToAllTabs failed:', e)
+          }
         }
 
         return saveResult
